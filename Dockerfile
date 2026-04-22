@@ -61,6 +61,10 @@ RUN apt-get update && apt-get install -y --no-install-suggests \
 COPY --chown=node:node --from=builder /ghostfolio/dist/apps /ghostfolio/apps/
 COPY --chown=node:node ./docker/entrypoint.sh /ghostfolio/
 WORKDIR /ghostfolio/apps/api
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD curl --fail http://localhost:${PORT:-3333}/api/v1/health || exit 1
+
 EXPOSE ${PORT:-3333}
 USER node
 CMD [ "/ghostfolio/entrypoint.sh" ]
