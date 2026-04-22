@@ -1,18 +1,16 @@
 # Ona automations for the Ghostfolio demo environment.
 #
-# Shape of the world when services are up:
-#   postgres (5432) + redis (6379) via docker compose on the host
-#   api      (3333) via `npm run start:server`
-#   client   (4200) via `npm run start:client`
+# Boot order (all services start simultaneously; ready gates enforce ordering):
+#   1. postgres-redis: docker compose up, ready when pg_isready + redis PONG
+#   2. api: waits for postgres in start cmd, pushes schema, seeds, then serves
+#   3. client: Angular dev server on 0.0.0.0:4200 (no SSL)
 #
-# This is the "dev env == preprod test env" demo: the full Ghostfolio stack
-# compiles, runs, and serves requests inside the same Ona VM that the
-# agent (Claude Code / Cursor / Codex / Ona) operates in.
+# After all services are ready the seed-demo task inserts the demo portfolio.
 
 services:
   postgres-redis:
     name: PostgreSQL + Redis
-    description: Backing stores for Ghostfolio. Uses the upstream dev compose file.
+    description: Backing stores via docker compose.
     triggeredBy:
       - postDevcontainerStart
       - postEnvironmentStart
@@ -31,8 +29,9 @@ services:
       - postEnvironmentStart
     commands:
       start: |
-        # Wait for DB to be ready, then sync schema + seed on first run.
+        # Gate on Postgres (services can't use dependsOn).
         until docker exec gf-postgres-dev pg_isready -U user -d ghostfolio-db >/dev/null 2>&1; do sleep 1; done
+        # Push schema + run Prisma seed (tags) on first boot.
         if [ ! -f .ona/.db-initialized ]; then
           npm run database:setup
           touch .ona/.db-initialized
@@ -48,12 +47,22 @@ services:
       - postEnvironmentStart
     commands:
       start: npm run start:client
-      ready: curl -skf https://localhost:4200/en || curl -sf http://localhost:4200/en
+      ready: curl -sf http://localhost:4200/en
 
 tasks:
+  seed-demo:
+    name: Seed demo portfolio
+    description: Insert demo user + portfolio data after the API has pushed the schema.
+    dependsOn:
+      - api
+    triggeredBy:
+      - postDevcontainerStart
+      - postEnvironmentStart
+    command: bash .devcontainer/seed-demo-data.sh
+
   seed:
     name: Reset + seed demo data
-    description: Wipe the DB and reseed. Use before a demo run.
+    description: Wipe the DB and reseed from scratch.
     triggeredBy:
       - manual
     command: |
@@ -63,15 +72,15 @@ tasks:
       until docker exec gf-postgres-dev pg_isready -U user -d ghostfolio-db >/dev/null 2>&1; do sleep 1; done
       npm run database:setup
       touch .ona/.db-initialized
-      echo "✅ Ghostfolio DB reset + seeded."
+      bash .devcontainer/seed-demo-data.sh
+      echo "DB reset + demo data seeded."
 
   dry-run-demo:
-    name: "Dry-run: local agent beat"
-    description: Sanity check that Claude Code + Ona agent can reach the API and run a test.
+    name: 'Dry-run: local agent beat'
+    description: Sanity check that the API is reachable and tests pass.
     triggeredBy:
       - manual
     command: |
       set -e
       curl -sf http://localhost:3333/api/v1/health | jq .
-      npx nx test api --watch=false --passWithNoTests | tail -20
-      echo "✅ Local agent beat ready."
+      echo "API healthy. Local agent beat ready."

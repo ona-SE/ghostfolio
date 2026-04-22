@@ -216,9 +216,9 @@
       "options": {
         "buildTarget": "client:build",
         "proxyConfig": "apps/client/proxy.conf.json",
-        "ssl": true,
-        "sslCert": "apps/client/localhost.cert",
-        "sslKey": "apps/client/localhost.pem"
+        "host": "0.0.0.0",
+        "ssl": false,
+        "allowedHosts": [".flex.doptig.cloud"]
       },
       "configurations": {
         "development-ca": {

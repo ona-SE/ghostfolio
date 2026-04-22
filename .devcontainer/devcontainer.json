@@ -8,12 +8,10 @@
     },
     "ghcr.io/devcontainers/features/git:1": {}
   },
-  "forwardPorts": [3333, 4200, 5432, 6379],
+  "forwardPorts": [3333, 4200],
   "portsAttributes": {
-    "3333": { "label": "Ghostfolio API" },
-    "4200": { "label": "Ghostfolio Client" },
-    "5432": { "label": "PostgreSQL" },
-    "6379": { "label": "Redis" }
+    "3333": { "label": "Ghostfolio API", "protocol": "http" },
+    "4200": { "label": "Ghostfolio Client", "protocol": "http" }
   },
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   "remoteUser": "node",
