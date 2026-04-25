@@ -24,6 +24,7 @@ import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ServeStaticModule } from '@nestjs/serve-static';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { StatusCodes } from 'http-status-codes';
 import { join } from 'node:path';
 
@@ -168,6 +169,15 @@ import { UserModule } from './user/user.module';
     SubscriptionModule,
     SymbolModule,
     TagsModule,
+    ThrottlerModule.forRoot({
+      throttlers: [
+        {
+          name: 'public-api',
+          ttl: 900000, // 15 minutes in milliseconds
+          limit: 100
+        }
+      ]
+    }),
     UserModule,
     WatchlistModule
   ],
