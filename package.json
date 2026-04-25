@@ -139,7 +139,8 @@
     "tablemark": "4.1.0",
     "twitter-api-v2": "1.29.0",
     "yahoo-finance2": "3.14.0",
-    "zone.js": "0.16.1"
+    "zone.js": "0.16.1",
+    "@nestjs/throttler": "^6.4.0"
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "21.2.6",
