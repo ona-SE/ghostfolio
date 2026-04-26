@@ -64,7 +64,8 @@ export const holdings: PortfolioPosition[] = [
     symbol: 'AAPL',
     tags: [],
     url: 'https://www.apple.com',
-    valueInBaseCurrency: 12230
+    valueInBaseCurrency: 12230,
+    valueInPercentage: 0.068999
   },
   {
     activitiesCount: 2,
@@ -129,7 +130,8 @@ export const holdings: PortfolioPosition[] = [
     symbol: 'ALV.DE',
     tags: [],
     url: 'https://www.allianz.com',
-    valueInBaseCurrency: 6763.224181360202
+    valueInBaseCurrency: 6763.224181360202,
+    valueInPercentage: 0.038157
   },
   {
     activitiesCount: 1,
@@ -194,7 +196,8 @@ export const holdings: PortfolioPosition[] = [
     symbol: 'AMZN',
     tags: [],
     url: 'https://www.aboutamazon.com',
-    valueInBaseCurrency: 22868
+    valueInBaseCurrency: 22868,
+    valueInPercentage: 0.129016
   },
   {
     activitiesCount: 1,
@@ -235,7 +238,8 @@ export const holdings: PortfolioPosition[] = [
     symbol: 'bitcoin',
     tags: [],
     url: undefined,
-    valueInBaseCurrency: 54666.7898248
+    valueInBaseCurrency: 54666.7898248,
+    valueInPercentage: 0.308418
   },
   {
     activitiesCount: 1,
@@ -300,7 +304,8 @@ export const holdings: PortfolioPosition[] = [
     symbol: 'MSFT',
     tags: [],
     url: 'https://www.microsoft.com',
-    valueInBaseCurrency: 12252.9
+    valueInBaseCurrency: 12252.9,
+    valueInPercentage: 0.069128
   },
   {
     activitiesCount: 1,
@@ -365,7 +370,8 @@ export const holdings: PortfolioPosition[] = [
     symbol: 'TSLA',
     tags: [],
     url: 'https://www.tesla.com',
-    valueInBaseCurrency: 53376
+    valueInBaseCurrency: 53376,
+    valueInPercentage: 0.301136
   },
   {
     activitiesCount: 5,
@@ -430,6 +436,7 @@ export const holdings: PortfolioPosition[] = [
     symbol: 'VTI',
     tags: [],
     url: 'https://www.vanguard.com',
-    valueInBaseCurrency: 15092
+    valueInBaseCurrency: 15092,
+    valueInPercentage: 0.085146
   }
 ];
