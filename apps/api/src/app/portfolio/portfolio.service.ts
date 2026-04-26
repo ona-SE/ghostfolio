@@ -680,7 +680,10 @@ export class PortfolioService {
         quantity: quantity.toNumber(),
         sectors: assetProfile.sectors,
         url: assetProfile.url,
-        valueInBaseCurrency: valueInBaseCurrency.toNumber()
+        valueInBaseCurrency: valueInBaseCurrency.toNumber(),
+        valueInPercentage: totalValueInBaseCurrency.eq(0)
+          ? 0
+          : valueInBaseCurrency.div(totalValueInBaseCurrency).toNumber()
       };
     }
 
@@ -1559,6 +1562,12 @@ export class PortfolioService {
     for (const symbol of Object.keys(cashPositions)) {
       // Calculate allocations for each currency
       cashPositions[symbol].allocationInPercentage = value.gt(0)
+        ? new Big(cashPositions[symbol].valueInBaseCurrency)
+            .div(value)
+            .toNumber()
+        : 0;
+
+      cashPositions[symbol].valueInPercentage = value.gt(0)
         ? new Big(cashPositions[symbol].valueInBaseCurrency)
             .div(value)
             .toNumber()

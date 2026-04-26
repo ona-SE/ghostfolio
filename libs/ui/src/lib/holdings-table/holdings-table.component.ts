@@ -70,6 +70,7 @@ export class GfHoldingsTableComponent {
     }
 
     columns.push('allocationInPercentage');
+    columns.push('valueInPercentage');
 
     if (this.hasPermissionToShowValues()) {
       columns.push('performance');
