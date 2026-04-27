@@ -120,6 +120,7 @@ describe('PortfolioCalculator', () => {
       null,
       exchangeRateDataService,
       null,
+      redisCacheService,
       null
     );
 
