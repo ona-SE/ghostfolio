@@ -1,6 +1,7 @@
 import { AccountBalanceService } from '@ghostfolio/api/app/account-balance/account-balance.service';
 import { AccountService } from '@ghostfolio/api/app/account/account.service';
 import { CashDetails } from '@ghostfolio/api/app/account/interfaces/cash-details.interface';
+import { RedisCacheService } from '@ghostfolio/api/app/redis-cache/redis-cache.service';
 import { AssetProfileChangedEvent } from '@ghostfolio/api/events/asset-profile-changed.event';
 import { PortfolioChangedEvent } from '@ghostfolio/api/events/portfolio-changed.event';
 import { LogPerformance } from '@ghostfolio/api/interceptors/performance-logging/performance-logging.interceptor';
@@ -53,6 +54,7 @@ export class ActivitiesService {
     private readonly eventEmitter: EventEmitter2,
     private readonly exchangeRateDataService: ExchangeRateDataService,
     private readonly prismaService: PrismaService,
+    private readonly redisCacheService: RedisCacheService,
     private readonly symbolProfileService: SymbolProfileService
   ) {}
 
@@ -232,6 +234,12 @@ export class ActivitiesService {
       });
     }
 
+    // Invalidate cached portfolio snapshots immediately so subsequent reads
+    // reflect the new activity instead of serving stale data.
+    await this.redisCacheService.removePortfolioSnapshotsByUserId({
+      userId: activity.userId
+    });
+
     this.eventEmitter.emit(
       AssetProfileChangedEvent.getName(),
       new AssetProfileChangedEvent({
@@ -266,6 +274,10 @@ export class ActivitiesService {
     if (symbolProfile.activitiesCount === 0) {
       await this.symbolProfileService.deleteById(activity.symbolProfileId);
     }
+
+    await this.redisCacheService.removePortfolioSnapshotsByUserId({
+      userId: activity.userId
+    });
 
     this.eventEmitter.emit(
       PortfolioChangedEvent.getName(),
@@ -314,6 +326,8 @@ export class ActivitiesService {
         await this.symbolProfileService.deleteById(id);
       }
     }
+
+    await this.redisCacheService.removePortfolioSnapshotsByUserId({ userId });
 
     this.eventEmitter.emit(
       PortfolioChangedEvent.getName(),
@@ -894,6 +908,10 @@ export class ActivitiesService {
           connect: tags
         }
       }
+    });
+
+    await this.redisCacheService.removePortfolioSnapshotsByUserId({
+      userId: activity.userId
     });
 
     this.eventEmitter.emit(
