@@ -43,7 +43,7 @@ import { GfTransferBalanceDialogComponent } from './transfer-balance/transfer-ba
   templateUrl: './accounts-page.html'
 })
 export class GfAccountsPageComponent implements OnInit {
-  public accounts: AccountModel[];
+  public accounts: AccountModel[] | undefined;
   public activitiesCount = 0;
   public deviceType: string;
   public hasImpersonationId: boolean;
@@ -82,7 +82,9 @@ export class GfAccountsPageComponent implements OnInit {
               return id === params['accountId'];
             });
 
-            this.openUpdateAccountDialog(account);
+            if (account) {
+              this.openUpdateAccountDialog(account);
+            }
           } else {
             this.router.navigate(['.'], { relativeTo: this.route });
           }
@@ -271,8 +273,8 @@ export class GfAccountsPageComponent implements OnInit {
         account: {
           balance: 0,
           comment: null,
-          currency: this.user?.settings?.baseCurrency,
-          id: null,
+          currency: this.user?.settings?.baseCurrency ?? null,
+          id: '',
           isExcluded: false,
           name: null,
           platformId: null
@@ -314,7 +316,7 @@ export class GfAccountsPageComponent implements OnInit {
       TransferBalanceDialogParams
     >(GfTransferBalanceDialogComponent, {
       data: {
-        accounts: this.accounts
+        accounts: this.accounts ?? []
       },
       width: this.deviceType === 'mobile' ? '100vw' : '50rem'
     });

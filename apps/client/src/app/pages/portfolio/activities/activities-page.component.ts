@@ -55,7 +55,7 @@ import { ImportActivitiesDialogParams } from './import-activities-dialog/interfa
 })
 export class GfActivitiesPageComponent implements OnInit {
   public activityTypesFilter: string[] = [];
-  public dataSource: MatTableDataSource<Activity>;
+  public dataSource: MatTableDataSource<Activity> | undefined;
   public deviceType: string;
   public hasImpersonationId: boolean;
   public hasPermissionToCreateActivity: boolean;
@@ -241,7 +241,7 @@ export class GfActivitiesPageComponent implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((data) => {
         for (const activity of data.activities) {
-          delete activity.id;
+          delete (activity as Partial<typeof activity>).id;
         }
 
         downloadAsFile({
@@ -386,7 +386,7 @@ export class GfActivitiesPageComponent implements OnInit {
       });
   }
 
-  private isCalendarYear(dateRange: DateRange) {
+  private isCalendarYear(dateRange: DateRange | undefined) {
     if (!dateRange) {
       return false;
     }
@@ -406,16 +406,17 @@ export class GfActivitiesPageComponent implements OnInit {
           CreateOrUpdateActivityDialogParams
         >(GfCreateOrUpdateActivityDialogComponent, {
           data: {
-            accounts: this.user?.accounts,
+            accounts: this.user?.accounts ?? [],
             activity: {
               ...aActivity,
-              accountId: aActivity?.accountId,
+              accountId: aActivity?.accountId ?? null,
               date: new Date(),
-              id: null,
+              id: '',
               fee: 0,
               type: aActivity?.type ?? 'BUY',
-              unitPrice: null
-            },
+              unitPrice: 0,
+              SymbolProfile: aActivity?.SymbolProfile ?? null
+            } as unknown as CreateOrUpdateActivityDialogParams['activity'],
             user: this.user
           },
           height: this.deviceType === 'mobile' ? '98vh' : '80vh',
