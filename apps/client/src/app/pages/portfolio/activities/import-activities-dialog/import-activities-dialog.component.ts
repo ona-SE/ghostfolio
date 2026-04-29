@@ -135,7 +135,7 @@ export class GfImportActivitiesDialogComponent {
 
       this.dialogTitle = $localize`Import Dividends`;
       this.mode = 'DIVIDEND';
-      this.assetProfileForm.get('assetProfileIdentifier').disable();
+      this.assetProfileForm.get('assetProfileIdentifier')?.disable();
 
       this.dataService
         .fetchPortfolioHoldings({
@@ -156,7 +156,7 @@ export class GfImportActivitiesDialogComponent {
           this.holdings = sortBy(holdings, ({ name }) => {
             return name.toLowerCase();
           });
-          this.assetProfileForm.get('assetProfileIdentifier').enable();
+          this.assetProfileForm.get('assetProfileIdentifier')?.enable();
 
           this.isLoading = false;
 
@@ -225,11 +225,11 @@ export class GfImportActivitiesDialogComponent {
   }
 
   public onLoadDividends(aStepper: MatStepper) {
-    this.assetProfileForm.get('assetProfileIdentifier').disable();
+    this.assetProfileForm.get('assetProfileIdentifier')?.disable();
 
     const { dataSource, symbol } = this.assetProfileForm.get(
       'assetProfileIdentifier'
-    ).value;
+    )?.value ?? {};
 
     this.dataService
       .fetchDividendsImport({
@@ -258,7 +258,7 @@ export class GfImportActivitiesDialogComponent {
     this.errorMessages = [];
     this.importStep = ImportStep.SELECT_ACTIVITIES;
     this.pageIndex = 0;
-    this.assetProfileForm.get('assetProfileIdentifier').enable();
+    this.assetProfileForm.get('assetProfileIdentifier')?.enable();
 
     aStepper.reset();
   }
@@ -270,8 +270,11 @@ export class GfImportActivitiesDialogComponent {
 
     input.onchange = (event) => {
       // Getting the file reference
-      const file = (event.target as HTMLInputElement).files[0];
-      this.handleFile({ file, stepper });
+      const file = (event.target as HTMLInputElement).files?.[0];
+
+      if (file) {
+        this.handleFile({ file, stepper });
+      }
     };
 
     input.click();
@@ -297,7 +300,7 @@ export class GfImportActivitiesDialogComponent {
     reader.readAsText(file, 'UTF-8');
 
     reader.onload = async (readerEvent) => {
-      const fileContent = readerEvent.target.result as string;
+      const fileContent = readerEvent.target?.result as string;
       const fileExtension = file.name.split('.').pop()?.toLowerCase();
 
       try {

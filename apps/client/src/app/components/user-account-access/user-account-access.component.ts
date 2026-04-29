@@ -144,7 +144,7 @@ export class GfUserAccountAccessComponent implements OnInit {
       confirmFn: () => {
         this.dataService
           .updateOwnAccessToken({
-            accessToken: this.updateOwnAccessTokenForm.get('accessToken').value
+            accessToken: this.updateOwnAccessTokenForm.get('accessToken')?.value ?? ''
           })
           .pipe(
             catchError(() => {
@@ -187,8 +187,8 @@ export class GfUserAccountAccessComponent implements OnInit {
       data: {
         access: {
           alias: '',
-          grantee: null,
-          id: null,
+          grantee: undefined,
+          id: '',
           permissions: ['READ_RESTRICTED'],
           type: 'PRIVATE'
         }
@@ -222,7 +222,7 @@ export class GfUserAccountAccessComponent implements OnInit {
       data: {
         access: {
           alias: access.alias,
-          grantee: access.grantee === 'Public' ? null : access.grantee,
+          grantee: access.grantee === 'Public' ? undefined : access.grantee,
           id: access.id,
           permissions: access.permissions,
           type: access.type
@@ -244,11 +244,11 @@ export class GfUserAccountAccessComponent implements OnInit {
   private update() {
     this.accessesGet = this.user.access.map(({ alias, id, permissions }) => {
       return {
-        alias,
+        alias: alias ?? undefined,
         id,
         permissions,
         grantee: $localize`Me`,
-        type: 'PRIVATE'
+        type: 'PRIVATE' as const
       };
     });
 

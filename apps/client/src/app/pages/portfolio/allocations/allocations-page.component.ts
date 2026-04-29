@@ -281,7 +281,7 @@ export class GfAllocationsPageComponent implements OnInit {
     this.platforms = {};
     this.portfolioDetails = {
       accounts: {},
-      createdAt: undefined,
+      createdAt: new Date(0),
       holdings: {},
       platforms: {},
       summary: undefined
@@ -310,7 +310,7 @@ export class GfAllocationsPageComponent implements OnInit {
       let value = 0;
 
       if (this.showValuesInPercentage()) {
-        value = valueInPercentage;
+        value = valueInPercentage ?? 0;
       } else {
         value = valueInBaseCurrency;
       }
@@ -328,9 +328,9 @@ export class GfAllocationsPageComponent implements OnInit {
       let value = 0;
 
       if (this.showValuesInPercentage()) {
-        value = position.allocationInPercentage;
+        value = position.allocationInPercentage ?? 0;
       } else {
-        value = position.valueInBaseCurrency;
+        value = position.valueInBaseCurrency ?? 0;
       }
 
       this.holdings[symbol] = {
@@ -350,57 +350,35 @@ export class GfAllocationsPageComponent implements OnInit {
 
       if (position.assetClass !== AssetClass.LIQUIDITY) {
         // Prepare analysis data by continents, countries, holdings and sectors except for liquidity
+        const positionValue = isNumber(position.valueInBaseCurrency)
+          ? position.valueInBaseCurrency
+          : (position.valueInPercentage ?? 0);
 
         if (position.countries.length > 0) {
           for (const country of position.countries) {
             const { code, continent, name, weight } = country;
 
             if (this.continents[continent]?.value) {
-              this.continents[continent].value +=
-                weight *
-                (isNumber(position.valueInBaseCurrency)
-                  ? position.valueInBaseCurrency
-                  : position.valueInPercentage);
+              this.continents[continent].value += weight * positionValue;
             } else {
               this.continents[continent] = {
                 name: continent,
-                value:
-                  weight *
-                  (isNumber(position.valueInBaseCurrency)
-                    ? this.portfolioDetails.holdings[symbol].valueInBaseCurrency
-                    : this.portfolioDetails.holdings[symbol].valueInPercentage)
+                value: weight * positionValue
               };
             }
 
             if (this.countries[code]?.value) {
-              this.countries[code].value +=
-                weight *
-                (isNumber(position.valueInBaseCurrency)
-                  ? position.valueInBaseCurrency
-                  : position.valueInPercentage);
+              this.countries[code].value += weight * positionValue;
             } else {
               this.countries[code] = {
                 name,
-                value:
-                  weight *
-                  (isNumber(position.valueInBaseCurrency)
-                    ? this.portfolioDetails.holdings[symbol].valueInBaseCurrency
-                    : this.portfolioDetails.holdings[symbol].valueInPercentage)
+                value: weight * positionValue
               };
             }
           }
         } else {
-          this.continents[UNKNOWN_KEY].value += isNumber(
-            position.valueInBaseCurrency
-          )
-            ? this.portfolioDetails.holdings[symbol].valueInBaseCurrency
-            : this.portfolioDetails.holdings[symbol].valueInPercentage;
-
-          this.countries[UNKNOWN_KEY].value += isNumber(
-            position.valueInBaseCurrency
-          )
-            ? this.portfolioDetails.holdings[symbol].valueInBaseCurrency
-            : this.portfolioDetails.holdings[symbol].valueInPercentage;
+          this.continents[UNKNOWN_KEY].value += positionValue;
+          this.countries[UNKNOWN_KEY].value += positionValue;
         }
 
         if (position.holdings.length > 0) {
@@ -410,21 +388,16 @@ export class GfAllocationsPageComponent implements OnInit {
             valueInBaseCurrency
           } of position.holdings) {
             const normalizedAssetName = this.normalizeAssetName(name);
+            const holdingValue = isNumber(valueInBaseCurrency)
+              ? valueInBaseCurrency
+              : allocationInPercentage * (position.valueInPercentage ?? 0);
 
             if (this.topHoldingsMap[normalizedAssetName]?.value) {
-              this.topHoldingsMap[normalizedAssetName].value += isNumber(
-                valueInBaseCurrency
-              )
-                ? valueInBaseCurrency
-                : allocationInPercentage *
-                  this.portfolioDetails.holdings[symbol].valueInPercentage;
+              this.topHoldingsMap[normalizedAssetName].value += holdingValue;
             } else {
               this.topHoldingsMap[normalizedAssetName] = {
                 name,
-                value: isNumber(valueInBaseCurrency)
-                  ? valueInBaseCurrency
-                  : allocationInPercentage *
-                    this.portfolioDetails.holdings[symbol].valueInPercentage
+                value: holdingValue
               };
             }
           }
@@ -435,28 +408,16 @@ export class GfAllocationsPageComponent implements OnInit {
             const { name, weight } = sector;
 
             if (this.sectors[name]?.value) {
-              this.sectors[name].value +=
-                weight *
-                (isNumber(position.valueInBaseCurrency)
-                  ? position.valueInBaseCurrency
-                  : position.valueInPercentage);
+              this.sectors[name].value += weight * positionValue;
             } else {
               this.sectors[name] = {
                 name,
-                value:
-                  weight *
-                  (isNumber(position.valueInBaseCurrency)
-                    ? this.portfolioDetails.holdings[symbol].valueInBaseCurrency
-                    : this.portfolioDetails.holdings[symbol].valueInPercentage)
+                value: weight * positionValue
               };
             }
           }
         } else {
-          this.sectors[UNKNOWN_KEY].value += isNumber(
-            position.valueInBaseCurrency
-          )
-            ? this.portfolioDetails.holdings[symbol].valueInBaseCurrency
-            : this.portfolioDetails.holdings[symbol].valueInPercentage;
+          this.sectors[UNKNOWN_KEY].value += positionValue;
         }
       }
 
@@ -470,19 +431,23 @@ export class GfAllocationsPageComponent implements OnInit {
         symbol: prettifySymbol(symbol),
         value: isNumber(position.valueInBaseCurrency)
           ? position.valueInBaseCurrency
-          : position.valueInPercentage
+          : (position.valueInPercentage ?? 0)
       };
     }
 
-    this.markets = this.portfolioDetails.markets;
+    if (this.portfolioDetails.markets) {
+      this.markets = this.portfolioDetails.markets;
+    }
 
-    Object.values(this.portfolioDetails.marketsAdvanced).forEach(
-      ({ id, valueInBaseCurrency, valueInPercentage }) => {
-        this.marketsAdvanced[id].value = isNumber(valueInBaseCurrency)
-          ? valueInBaseCurrency
-          : valueInPercentage;
-      }
-    );
+    if (this.portfolioDetails.marketsAdvanced) {
+      Object.values(this.portfolioDetails.marketsAdvanced).forEach(
+        ({ id, valueInBaseCurrency, valueInPercentage }) => {
+          this.marketsAdvanced[id].value = isNumber(valueInBaseCurrency)
+            ? valueInBaseCurrency
+            : valueInPercentage;
+        }
+      );
+    }
 
     for (const [
       id,
@@ -491,7 +456,7 @@ export class GfAllocationsPageComponent implements OnInit {
       let value = 0;
 
       if (this.showValuesInPercentage()) {
-        value = valueInPercentage;
+        value = valueInPercentage ?? 0;
       } else {
         value = valueInBaseCurrency;
       }
@@ -509,7 +474,7 @@ export class GfAllocationsPageComponent implements OnInit {
           return {
             name,
             allocationInPercentage: value,
-            valueInBaseCurrency: null
+            valueInBaseCurrency: 0
           };
         }
 
@@ -544,9 +509,9 @@ export class GfAllocationsPageComponent implements OnInit {
 
               return null;
             })
-            .filter((item) => {
-              return item !== null;
-            })
+            .filter(
+              (item): item is NonNullable<typeof item> => item !== null
+            )
             .sort((a, b) => {
               return b.allocationInPercentage - a.allocationInPercentage;
             }),
