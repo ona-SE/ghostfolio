@@ -19,6 +19,7 @@ import {
 } from '@ghostfolio/common/config';
 import { SubscriptionType } from '@ghostfolio/common/enums';
 import {
+  PortfolioAllocationResponse,
   PortfolioDetails,
   PortfolioDividendsResponse,
   PortfolioHoldingResponse,
@@ -71,6 +72,29 @@ export class PortfolioController {
     private readonly portfolioService: PortfolioService,
     @Inject(REQUEST) private readonly request: RequestWithUser
   ) {}
+
+  @Get('allocation')
+  @UseGuards(AuthGuard('jwt'), HasPermissionGuard)
+  @UseInterceptors(TransformDataSourceInRequestInterceptor)
+  @Version('2')
+  public async getAllocation(
+    @Headers(HEADER_KEY_IMPERSONATION.toLowerCase()) impersonationId: string,
+    @Query('accounts') filterByAccounts?: string,
+    @Query('assetClasses') filterByAssetClasses?: string,
+    @Query('tags') filterByTags?: string
+  ): Promise<PortfolioAllocationResponse> {
+    const filters = this.apiService.buildFiltersFromQueryParams({
+      filterByAccounts,
+      filterByAssetClasses,
+      filterByTags
+    });
+
+    return this.portfolioService.getAllocation({
+      filters,
+      impersonationId,
+      userId: this.request.user.id
+    });
+  }
 
   @Get('details')
   @UseGuards(AuthGuard('jwt'), HasPermissionGuard)

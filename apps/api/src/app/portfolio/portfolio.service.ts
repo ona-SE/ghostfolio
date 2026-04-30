@@ -44,6 +44,7 @@ import {
   Filter,
   HistoricalDataItem,
   InvestmentItem,
+  PortfolioAllocationResponse,
   PortfolioDetails,
   PortfolioHoldingResponse,
   PortfolioInvestmentsResponse,
@@ -318,6 +319,132 @@ export class PortfolioService {
       totalInterestInBaseCurrency: totalInterestInBaseCurrency.toNumber(),
       totalValueInBaseCurrency: totalValueInBaseCurrency.toNumber()
     };
+  }
+
+  public async getAllocation({
+    filters,
+    impersonationId,
+    userId
+  }: {
+    filters?: Filter[];
+    impersonationId: string;
+    userId: string;
+  }): Promise<PortfolioAllocationResponse> {
+    const { holdings } = await this.getDetails({
+      filters,
+      impersonationId,
+      userId,
+      withMarkets: true
+    });
+
+    const byAssetClass: PortfolioAllocationResponse['byAssetClass'] = {};
+    const bySector: PortfolioAllocationResponse['bySector'] = {};
+    const byGeography: PortfolioAllocationResponse['byGeography'] = {};
+
+    let totalValue = 0;
+
+    for (const [, position] of Object.entries(holdings)) {
+      if (position.assetClass === AssetClass.LIQUIDITY) {
+        continue;
+      }
+
+      const value = position.valueInBaseCurrency ?? 0;
+      totalValue += value;
+    }
+
+    if (totalValue === 0) {
+      return { byAssetClass, bySector, byGeography };
+    }
+
+    for (const [, position] of Object.entries(holdings)) {
+      if (position.assetClass === AssetClass.LIQUIDITY) {
+        continue;
+      }
+
+      const value = position.valueInBaseCurrency ?? 0;
+
+      // Aggregate by asset class
+      const assetClassName = position.assetClass ?? UNKNOWN_KEY;
+
+      if (!byAssetClass[assetClassName]) {
+        byAssetClass[assetClassName] = {
+          name: assetClassName,
+          allocationInPercentage: 0,
+          valueInBaseCurrency: 0
+        };
+      }
+
+      byAssetClass[assetClassName].valueInBaseCurrency += value;
+
+      // Aggregate by sector (weighted by sector weight per holding)
+      if (position.sectors?.length > 0) {
+        for (const sector of position.sectors) {
+          const sectorName = sector.name || UNKNOWN_KEY;
+
+          if (!bySector[sectorName]) {
+            bySector[sectorName] = {
+              name: sectorName,
+              allocationInPercentage: 0,
+              valueInBaseCurrency: 0
+            };
+          }
+
+          bySector[sectorName].valueInBaseCurrency += value * sector.weight;
+        }
+      } else {
+        if (!bySector[UNKNOWN_KEY]) {
+          bySector[UNKNOWN_KEY] = {
+            name: UNKNOWN_KEY,
+            allocationInPercentage: 0,
+            valueInBaseCurrency: 0
+          };
+        }
+
+        bySector[UNKNOWN_KEY].valueInBaseCurrency += value;
+      }
+
+      // Aggregate by geography (weighted by country weight per holding)
+      if (position.countries?.length > 0) {
+        for (const country of position.countries) {
+          const code = country.code || UNKNOWN_KEY;
+
+          if (!byGeography[code]) {
+            byGeography[code] = {
+              name: country.name || code,
+              allocationInPercentage: 0,
+              valueInBaseCurrency: 0
+            };
+          }
+
+          byGeography[code].valueInBaseCurrency += value * country.weight;
+        }
+      } else {
+        if (!byGeography[UNKNOWN_KEY]) {
+          byGeography[UNKNOWN_KEY] = {
+            name: UNKNOWN_KEY,
+            allocationInPercentage: 0,
+            valueInBaseCurrency: 0
+          };
+        }
+
+        byGeography[UNKNOWN_KEY].valueInBaseCurrency += value;
+      }
+    }
+
+    // Compute percentages
+    for (const entry of Object.values(byAssetClass)) {
+      entry.allocationInPercentage = entry.valueInBaseCurrency / totalValue;
+    }
+
+    for (const entry of Object.values(bySector)) {
+      entry.allocationInPercentage = entry.valueInBaseCurrency / totalValue;
+    }
+
+    for (const entry of Object.values(byGeography)) {
+      entry.allocationInPercentage = entry.valueInBaseCurrency / totalValue;
+    }
+
+    return { byAssetClass, bySector, byGeography };
   }
 
   public getDividends({
