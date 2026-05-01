@@ -1,4 +1,4 @@
-import { PrismaService } from '@ghostfolio/api/services/prisma/prisma.service';
+import { OrderRepository } from '@ghostfolio/api/services/order-repository/order-repository.service';
 import { PropertyService } from '@ghostfolio/api/services/property/property.service';
 import {
   PROPERTY_DEMO_ACCOUNT_ID,
@@ -12,7 +12,7 @@ import { randomUUID } from 'node:crypto';
 @Injectable()
 export class DemoService {
   public constructor(
-    private readonly prismaService: PrismaService,
+    private readonly orderRepository: OrderRepository,
     private readonly propertyService: PropertyService
   ) {}
 
@@ -22,7 +22,7 @@ export class DemoService {
       this.propertyService.getByKey<string>(PROPERTY_DEMO_USER_ID)
     ]);
 
-    let activities = await this.prismaService.order.findMany({
+    let activities = await this.orderRepository.findMany({
       orderBy: {
         date: 'asc'
       },
@@ -46,13 +46,13 @@ export class DemoService {
       };
     });
 
-    await this.prismaService.order.deleteMany({
+    await this.orderRepository.deleteMany({
       where: {
         userId: demoUserId
       }
     });
 
-    return this.prismaService.order.createMany({
+    return this.orderRepository.createMany({
       data: activities
     });
   }

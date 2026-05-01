@@ -5,6 +5,7 @@ import { ConfigurationService } from '@ghostfolio/api/services/configuration/con
 import { DataProviderService } from '@ghostfolio/api/services/data-provider/data-provider.service';
 import { ExchangeRateDataService } from '@ghostfolio/api/services/exchange-rate-data/exchange-rate-data.service';
 import { MarketDataService } from '@ghostfolio/api/services/market-data/market-data.service';
+import { OrderRepository } from '@ghostfolio/api/services/order-repository/order-repository.service';
 import { PrismaService } from '@ghostfolio/api/services/prisma/prisma.service';
 import { PropertyService } from '@ghostfolio/api/services/property/property.service';
 import { SymbolProfileService } from '@ghostfolio/api/services/symbol-profile/symbol-profile.service';
@@ -61,6 +62,7 @@ export class AdminService {
     private readonly dataProviderService: DataProviderService,
     private readonly exchangeRateDataService: ExchangeRateDataService,
     private readonly marketDataService: MarketDataService,
+    private readonly orderRepository: OrderRepository,
     private readonly prismaService: PrismaService,
     private readonly propertyService: PropertyService,
     private readonly symbolProfileService: SymbolProfileService
@@ -140,7 +142,7 @@ export class AdminService {
 
     const [activitiesCount, enabledDataSources, settings, userCount] =
       await Promise.all([
-        this.prismaService.order.count(),
+        this.orderRepository.count(),
         this.dataProviderService.getDataSources(),
         this.propertyService.get(),
         this.countUsersWithAnalytics()
