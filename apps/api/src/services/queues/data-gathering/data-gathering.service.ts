@@ -2,6 +2,7 @@ import { DataProviderService } from '@ghostfolio/api/services/data-provider/data
 import { DataEnhancerInterface } from '@ghostfolio/api/services/data-provider/interfaces/data-enhancer.interface';
 import { ExchangeRateDataService } from '@ghostfolio/api/services/exchange-rate-data/exchange-rate-data.service';
 import { DataGatheringItem } from '@ghostfolio/api/services/interfaces/interfaces';
+import { OrderRepository } from '@ghostfolio/api/services/order-repository/order-repository.service';
 import { PrismaService } from '@ghostfolio/api/services/prisma/prisma.service';
 import { PropertyService } from '@ghostfolio/api/services/property/property.service';
 import { SymbolProfileService } from '@ghostfolio/api/services/symbol-profile/symbol-profile.service';
@@ -41,6 +42,7 @@ export class DataGatheringService {
     private readonly dataGatheringQueue: Queue,
     private readonly dataProviderService: DataProviderService,
     private readonly exchangeRateDataService: ExchangeRateDataService,
+    private readonly orderRepository: OrderRepository,
     private readonly prismaService: PrismaService,
     private readonly propertyService: PropertyService,
     private readonly symbolProfileService: SymbolProfileService
@@ -425,7 +427,7 @@ export class DataGatheringService {
     });
     const startDate =
       (
-        await this.prismaService.order.findFirst({
+        await this.orderRepository.findFirst({
           orderBy: [{ date: 'asc' }]
         })
       )?.date ?? new Date();

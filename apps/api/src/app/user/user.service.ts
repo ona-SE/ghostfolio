@@ -21,6 +21,7 @@ import { RegionalMarketClusterRiskJapan } from '@ghostfolio/api/models/rules/reg
 import { RegionalMarketClusterRiskNorthAmerica } from '@ghostfolio/api/models/rules/regional-market-cluster-risk/north-america';
 import { ConfigurationService } from '@ghostfolio/api/services/configuration/configuration.service';
 import { I18nService } from '@ghostfolio/api/services/i18n/i18n.service';
+import { OrderRepository } from '@ghostfolio/api/services/order-repository/order-repository.service';
 import { PrismaService } from '@ghostfolio/api/services/prisma/prisma.service';
 import { PropertyService } from '@ghostfolio/api/services/property/property.service';
 import { TagService } from '@ghostfolio/api/services/tag/tag.service';
@@ -60,6 +61,7 @@ export class UserService {
     private readonly configurationService: ConfigurationService,
     private readonly eventEmitter: EventEmitter2,
     private readonly i18nService: I18nService,
+    private readonly orderRepository: OrderRepository,
     private readonly prismaService: PrismaService,
     private readonly propertyService: PropertyService,
     private readonly subscriptionService: SubscriptionService,
@@ -124,10 +126,10 @@ export class UserService {
           userId: impersonationUserId || user.id
         }
       }),
-      this.prismaService.order.count({
+      this.orderRepository.count({
         where: { userId: impersonationUserId || user.id }
       }),
-      this.prismaService.order.findFirst({
+      this.orderRepository.findFirst({
         orderBy: {
           date: 'asc'
         },

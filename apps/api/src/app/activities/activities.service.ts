@@ -7,7 +7,7 @@ import { PortfolioChangedEvent } from '@ghostfolio/api/events/portfolio-changed.
 import { LogPerformance } from '@ghostfolio/api/interceptors/performance-logging/performance-logging.interceptor';
 import { DataProviderService } from '@ghostfolio/api/services/data-provider/data-provider.service';
 import { ExchangeRateDataService } from '@ghostfolio/api/services/exchange-rate-data/exchange-rate-data.service';
-import { PrismaService } from '@ghostfolio/api/services/prisma/prisma.service';
+import { OrderRepository } from '@ghostfolio/api/services/order-repository/order-repository.service';
 import { DataGatheringService } from '@ghostfolio/api/services/queues/data-gathering/data-gathering.service';
 import { SymbolProfileService } from '@ghostfolio/api/services/symbol-profile/symbol-profile.service';
 import {
@@ -25,7 +25,6 @@ import {
   EnhancedSymbolProfile,
   Filter
 } from '@ghostfolio/common/interfaces';
-import { OrderWithAccount } from '@ghostfolio/common/types';
 
 import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -53,7 +52,7 @@ export class ActivitiesService {
     private readonly dataProviderService: DataProviderService,
     private readonly eventEmitter: EventEmitter2,
     private readonly exchangeRateDataService: ExchangeRateDataService,
-    private readonly prismaService: PrismaService,
+    private readonly orderRepository: OrderRepository,
     private readonly redisCacheService: RedisCacheService,
     private readonly symbolProfileService: SymbolProfileService
   ) {}
@@ -64,7 +63,7 @@ export class ActivitiesService {
     tags,
     userId
   }: { tags: Tag[]; userId: string } & AssetProfileIdentifier) {
-    const activities = await this.prismaService.order.findMany({
+    const activities = await this.orderRepository.findMany({
       where: {
         userId,
         SymbolProfile: {
@@ -76,7 +75,7 @@ export class ActivitiesService {
 
     await Promise.all(
       activities.map(({ id }) =>
-        this.prismaService.order.update({
+        this.orderRepository.update({
           data: {
             tags: {
               // The set operation replaces all existing connections with the provided ones
@@ -203,7 +202,7 @@ export class ActivitiesService {
       ? false
       : isAfter(data.date as Date, endOfToday());
 
-    const activity = await this.prismaService.order.create({
+    const activity = await this.orderRepository.create({
       data: {
         ...orderData,
         account,
@@ -262,7 +261,7 @@ export class ActivitiesService {
   public async deleteActivity(
     where: Prisma.OrderWhereUniqueInput
   ): Promise<Order> {
-    const activity = await this.prismaService.order.delete({
+    const activity = await this.orderRepository.delete({
       where
     });
 
@@ -304,7 +303,7 @@ export class ActivitiesService {
       withExcludedAccountsAndActivities: true
     });
 
-    const { count } = await this.prismaService.order.deleteMany({
+    const { count } = await this.orderRepository.deleteMany({
       where: {
         id: {
           in: activities.map(({ id }) => {
@@ -466,7 +465,7 @@ export class ActivitiesService {
     dataSource,
     symbol
   }: AssetProfileIdentifier) {
-    return this.prismaService.order.findFirst({
+    return this.orderRepository.findFirst({
       orderBy: {
         date: 'desc'
       },
@@ -662,7 +661,7 @@ export class ActivitiesService {
     }
 
     const [orders, count] = await Promise.all([
-      this.orders({
+      this.orderRepository.findMany({
         skip,
         take,
         where,
@@ -678,7 +677,7 @@ export class ActivitiesService {
         },
         orderBy: [...orderBy, { id: sortDirection }]
       }),
-      this.prismaService.order.count({ where })
+      this.orderRepository.count({ where })
     ]);
 
     const assetProfileIdentifiers = uniqBy(
@@ -812,7 +811,7 @@ export class ActivitiesService {
     activitiesCount: EnhancedSymbolProfile['activitiesCount'];
     dateOfFirstActivity: EnhancedSymbolProfile['dateOfFirstActivity'];
   }> {
-    const { _count, _min } = await this.prismaService.order.aggregate({
+    const { _count, _min } = await this.orderRepository.aggregate({
       _count: true,
       _min: {
         date: true
@@ -829,7 +828,7 @@ export class ActivitiesService {
   public async order(
     orderWhereUniqueInput: Prisma.OrderWhereUniqueInput
   ): Promise<Order | null> {
-    return this.prismaService.order.findUnique({
+    return this.orderRepository.findUnique({
       where: orderWhereUniqueInput
     });
   }
@@ -894,12 +893,12 @@ export class ActivitiesService {
     delete data.tags;
 
     // Remove existing tags
-    await this.prismaService.order.update({
+    await this.orderRepository.update({
       where,
       data: { tags: { set: [] } }
     });
 
-    const activity = await this.prismaService.order.update({
+    const activity = await this.orderRepository.update({
       where,
       data: {
         ...data,
@@ -922,25 +921,5 @@ export class ActivitiesService {
     );
 
     return activity;
-  }
-
-  private async orders(params: {
-    include?: Prisma.OrderInclude;
-    skip?: number;
-    take?: number;
-    cursor?: Prisma.OrderWhereUniqueInput;
-    where?: Prisma.OrderWhereInput;
-    orderBy?: Prisma.Enumerable<Prisma.OrderOrderByWithRelationInput>;
-  }): Promise<OrderWithAccount[]> {
-    const { include, skip, take, cursor, where, orderBy } = params;
-
-    return this.prismaService.order.findMany({
-      cursor,
-      include,
-      orderBy,
-      skip,
-      take,
-      where
-    });
   }
 }
