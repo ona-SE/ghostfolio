@@ -255,6 +255,55 @@ export class GfActivitiesPageComponent implements OnInit {
       });
   }
 
+  public onExportCsv() {
+    const fetchExportParams = {
+      activityTypes: this.activityTypesFilter.length
+        ? this.activityTypesFilter
+        : undefined,
+      filters: this.userService.getFilters()
+    };
+
+    this.dataService
+      .fetchExport(fetchExportParams)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((data) => {
+        const headers = [
+          'Date',
+          'Symbol',
+          'Type',
+          'Quantity',
+          'Unit Price',
+          'Fee',
+          'Currency',
+          'Account'
+        ];
+
+        const accountMap = new Map(
+          data.accounts.map((account) => [account.id, account.name])
+        );
+
+        const rows = data.activities.map((activity) => [
+          activity.date,
+          activity.symbol,
+          activity.type,
+          String(activity.quantity),
+          String(activity.unitPrice),
+          String(activity.fee),
+          activity.currency ?? '',
+          accountMap.get(activity.accountId) ?? ''
+        ]);
+
+        downloadAsFile({
+          content: { headers, rows },
+          fileName: `ghostfolio-export-${format(
+            parseISO(data.meta.date),
+            'yyyyMMddHHmm'
+          )}.csv`,
+          format: 'csv'
+        });
+      });
+  }
+
   public onExportDrafts(activityIds?: string[]) {
     this.dataService
       .fetchExport({ activityIds })

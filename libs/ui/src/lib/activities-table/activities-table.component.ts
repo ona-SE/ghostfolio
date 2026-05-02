@@ -126,6 +126,7 @@ export class GfActivitiesTableComponent implements AfterViewInit, OnInit {
   @Output() activityToClone = new EventEmitter<OrderWithAccount>();
   @Output() activityToUpdate = new EventEmitter<OrderWithAccount>();
   @Output() export = new EventEmitter<void>();
+  @Output() exportCsv = new EventEmitter<void>();
   @Output() exportDrafts = new EventEmitter<string[]>();
   @Output() import = new EventEmitter<void>();
   @Output() importDividends = new EventEmitter<AssetProfileIdentifier>();
@@ -317,6 +318,10 @@ export class GfActivitiesTableComponent implements AfterViewInit, OnInit {
 
   public onExport() {
     this.export.emit();
+  }
+
+  public onExportCsv() {
+    this.exportCsv.emit();
   }
 
   public onExportDraft(aActivityId: string) {
