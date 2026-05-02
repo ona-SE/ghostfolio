@@ -114,12 +114,32 @@ export function downloadAsFile({
   content: unknown;
   contentType?: string;
   fileName: string;
-  format: 'json' | 'string';
+  format: 'csv' | 'json' | 'string';
 }) {
   const a = document.createElement('a');
 
   if (format === 'json') {
     content = JSON.stringify(content, undefined, '  ');
+  } else if (format === 'csv') {
+    contentType = 'text/csv';
+    const { headers, rows } = content as {
+      headers: string[];
+      rows: string[][];
+    };
+
+    const escapeCsvField = (field: string) => {
+      if (field.includes(',') || field.includes('"') || field.includes('\n')) {
+        return `"${field.replace(/"/g, '""')}"`;
+      }
+
+      return field;
+    };
+
+    const lines = [
+      headers.map(escapeCsvField).join(','),
+      ...rows.map((row) => row.map(escapeCsvField).join(','))
+    ];
+    content = lines.join('\n');
   }
 
   const file = new Blob([content as string], {
