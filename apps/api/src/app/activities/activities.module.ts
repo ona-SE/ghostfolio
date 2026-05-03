@@ -10,6 +10,7 @@ import { DataProviderModule } from '@ghostfolio/api/services/data-provider/data-
 import { ExchangeRateDataModule } from '@ghostfolio/api/services/exchange-rate-data/exchange-rate-data.module';
 import { ImpersonationModule } from '@ghostfolio/api/services/impersonation/impersonation.module';
 import { OrderRepositoryModule } from '@ghostfolio/api/services/order-repository/order-repository.module';
+import { PrismaModule } from '@ghostfolio/api/services/prisma/prisma.module';
 import { DataGatheringQueueModule } from '@ghostfolio/api/services/queues/data-gathering/data-gathering.module';
 import { SymbolProfileModule } from '@ghostfolio/api/services/symbol-profile/symbol-profile.module';
 
@@ -29,6 +30,7 @@ import { ActivitiesService } from './activities.service';
     ExchangeRateDataModule,
     ImpersonationModule,
     OrderRepositoryModule,
+    PrismaModule,
     RedactValuesInResponseModule,
     RedisCacheModule,
     SymbolProfileModule,
