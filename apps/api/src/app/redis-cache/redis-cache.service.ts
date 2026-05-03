@@ -4,19 +4,18 @@ import { AssetProfileIdentifier, Filter } from '@ghostfolio/common/interfaces';
 
 import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import Keyv from 'keyv';
 import ms from 'ms';
 import { createHash, randomUUID } from 'node:crypto';
 
 @Injectable()
 export class RedisCacheService {
-  private client: Keyv;
+  private client: any;
 
   public constructor(
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
     private readonly configurationService: ConfigurationService
   ) {
-    this.client = cache.stores[0];
+    this.client = (cache as any).stores[0];
 
     this.client.deserialize = (value) => {
       try {
@@ -32,7 +31,7 @@ export class RedisCacheService {
   }
 
   public async get(key: string): Promise<string> {
-    return this.cache.get(key);
+    return (this.cache as any).get(key);
   }
 
   public async getKeys(aPrefix?: string): Promise<string[]> {
@@ -112,7 +111,7 @@ export class RedisCacheService {
   }
 
   public async remove(key: string) {
-    return this.cache.del(key);
+    return (this.cache as any).del(key);
   }
 
   public async removePortfolioSnapshotsByUserId({
@@ -124,15 +123,15 @@ export class RedisCacheService {
       `${this.getPortfolioSnapshotKey({ userId })}`
     );
 
-    return this.cache.mdel(keys);
+    return (this.cache as any).mdel(keys);
   }
 
   public async reset() {
-    return this.cache.clear();
+    return (this.cache as any).clear();
   }
 
   public async set(key: string, value: string, ttl?: number) {
-    return this.cache.set(
+    return (this.cache as any).set(
       key,
       value,
       ttl ?? this.configurationService.get('CACHE_TTL')
