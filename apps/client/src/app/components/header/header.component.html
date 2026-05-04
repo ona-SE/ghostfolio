@@ -163,6 +163,17 @@
       }
       <li class="list-inline-item">
         <button
+          class="no-min-width px-2"
+          i18n-title
+          mat-button
+          title="Toggle dark mode"
+          (click)="onToggleColorScheme()"
+        >
+          <ion-icon [name]="isDarkMode ? 'sunny-outline' : 'moon-outline'" />
+        </button>
+      </li>
+      <li class="list-inline-item">
+        <button
           class="no-min-width px-1"
           mat-flat-button
           [matMenuTriggerFor]="accountMenu"

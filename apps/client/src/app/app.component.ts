@@ -238,6 +238,30 @@ export class GfAppComponent implements OnInit {
     }
   }
 
+  public onColorSchemeChanged(colorScheme: ColorScheme) {
+    // Apply theme immediately
+    this.toggleTheme(colorScheme === 'DARK');
+
+    if (this.user) {
+      // Persist to server for logged-in users
+      this.dataService
+        .putUserSetting({ colorScheme })
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe(() => {
+          this.userService
+            .get(true)
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe((user) => {
+              this.user = user;
+              this.changeDetectorRef.markForCheck();
+            });
+        });
+    }
+
+    // Also persist to localStorage for immediate cross-tab consistency
+    localStorage.setItem('colorScheme', colorScheme);
+  }
+
   public onCreateAccount() {
     this.userService.signOut();
   }
@@ -249,8 +273,11 @@ export class GfAppComponent implements OnInit {
   }
 
   private initializeTheme(userPreferredColorScheme?: ColorScheme) {
-    const isDarkTheme = userPreferredColorScheme
-      ? userPreferredColorScheme === 'DARK'
+    const storedScheme = localStorage.getItem('colorScheme') as ColorScheme;
+    const effectiveScheme = userPreferredColorScheme || storedScheme;
+
+    const isDarkTheme = effectiveScheme
+      ? effectiveScheme === 'DARK'
       : window.matchMedia('(prefers-color-scheme: dark)').matches;
 
     this.toggleTheme(isDarkTheme);
