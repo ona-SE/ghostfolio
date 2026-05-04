@@ -12,7 +12,7 @@ import { UpdateUserSettingDto } from '@ghostfolio/common/dtos';
 import { Filter, InfoItem, User } from '@ghostfolio/common/interfaces';
 import { hasPermission, permissions } from '@ghostfolio/common/permissions';
 import { internalRoutes, publicRoutes } from '@ghostfolio/common/routes/routes';
-import { DateRange } from '@ghostfolio/common/types';
+import { ColorScheme, DateRange } from '@ghostfolio/common/types';
 import { GfAssistantComponent } from '@ghostfolio/ui/assistant/assistant.component';
 import { GfLogoComponent } from '@ghostfolio/ui/logo';
 import { NotificationService } from '@ghostfolio/ui/notifications';
@@ -45,10 +45,12 @@ import {
   closeOutline,
   logoGithub,
   menuOutline,
+  moonOutline,
   optionsOutline,
   personCircleOutline,
   radioButtonOffOutline,
-  radioButtonOnOutline
+  radioButtonOnOutline,
+  sunnyOutline
 } from 'ionicons/icons';
 import { EMPTY } from 'rxjs';
 import { catchError } from 'rxjs/operators';
@@ -99,6 +101,7 @@ export class GfHeaderComponent implements OnChanges {
   @Input() pageTitle: string;
   @Input() user: User;
 
+  @Output() colorSchemeChanged = new EventEmitter<ColorScheme>();
   @Output() signOut = new EventEmitter<void>();
 
   @ViewChild('assistant') assistantElement: GfAssistantComponent;
@@ -106,6 +109,7 @@ export class GfHeaderComponent implements OnChanges {
 
   public hasFilters: boolean;
   public hasImpersonationId: boolean;
+  public isDarkMode: boolean;
   public hasPermissionForAuthGoogle: boolean;
   public hasPermissionForAuthOidc: boolean;
   public hasPermissionForAuthToken: boolean;
@@ -157,14 +161,17 @@ export class GfHeaderComponent implements OnChanges {
       closeOutline,
       logoGithub,
       menuOutline,
+      moonOutline,
       optionsOutline,
       personCircleOutline,
       radioButtonOffOutline,
-      radioButtonOnOutline
+      radioButtonOnOutline,
+      sunnyOutline
     });
   }
 
   public ngOnChanges() {
+    this.isDarkMode = document.body.classList.contains('theme-dark');
     this.hasFilters = this.userService.hasFilters();
 
     this.hasPermissionForAuthGoogle = hasPermission(
@@ -282,6 +289,13 @@ export class GfHeaderComponent implements OnChanges {
 
   public onSignOut() {
     this.signOut.next();
+  }
+
+  public onToggleColorScheme() {
+    const isDark = document.body.classList.contains('theme-dark');
+    const newScheme: ColorScheme = isDark ? 'LIGHT' : 'DARK';
+
+    this.colorSchemeChanged.emit(newScheme);
   }
 
   public openLoginDialog() {
