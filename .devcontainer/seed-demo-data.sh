@@ -31,7 +31,8 @@ ON CONFLICT DO NOTHING;
 INSERT INTO "Account" (id, name, currency, balance, "isExcluded", "platformId", "userId", "createdAt", "updatedAt") VALUES
   ('acc-ibkr',     'IBKR Brokerage', 'USD', 5240.00, false, 'plt-ibkr',     '${USER_ID}', NOW(), NOW()),
   ('acc-schwab',   'Schwab IRA',     'USD', 3100.00, false, 'plt-schwab',   '${USER_ID}', NOW(), NOW()),
-  ('acc-coinbase', 'Coinbase',       'USD', 1200.00, false, 'plt-coinbase', '${USER_ID}', NOW(), NOW())
+  ('acc-coinbase', 'Coinbase',       'USD', 1200.00, false, 'plt-coinbase', '${USER_ID}', NOW(), NOW()),
+  ('acc-ibkr-eur', 'IBKR Europe',    'EUR', 2800.00, false, 'plt-ibkr',     '${USER_ID}', NOW(), NOW())
 ON CONFLICT DO NOTHING;
 
 -- Symbol Profiles (MANUAL data source — no external API keys needed)
@@ -42,7 +43,13 @@ INSERT INTO "SymbolProfile" (id, symbol, "dataSource", currency, name, "assetCla
   ('sp-voo',  'VOO',  'MANUAL', 'USD', 'Vanguard S&P 500 ETF',          'EQUITY',                  'ETF',            true, NOW(), NOW()),
   ('sp-bnd',  'BND',  'MANUAL', 'USD', 'Vanguard Total Bond Market ETF', 'FIXED_INCOME',            'ETF',            true, NOW(), NOW()),
   ('sp-btc',  'BTC',  'MANUAL', 'USD', 'Bitcoin',                        'ALTERNATIVE_INVESTMENT',  'CRYPTOCURRENCY', true, NOW(), NOW()),
-  ('sp-gld',  'GLD',  'MANUAL', 'USD', 'SPDR Gold Shares',              'COMMODITY',               'ETF',            true, NOW(), NOW())
+  ('sp-gld',  'GLD',  'MANUAL', 'USD', 'SPDR Gold Shares',              'COMMODITY',               'ETF',            true, NOW(), NOW()),
+  ('sp-eun',  'EUN',  'MANUAL', 'EUR', 'iShares Core MSCI Europe ETF',  'EQUITY',                  'ETF',            true, NOW(), NOW())
+ON CONFLICT DO NOTHING;
+
+-- USDEUR exchange rate symbol profile (YAHOO data source, matching DATA_SOURCE_EXCHANGE_RATES default)
+INSERT INTO "SymbolProfile" (id, symbol, "dataSource", currency, name, "isActive", "createdAt", "updatedAt") VALUES
+  ('sp-usdeur', 'USDEUR', 'YAHOO', 'EUR', 'USD/EUR Exchange Rate', true, NOW(), NOW())
 ON CONFLICT DO NOTHING;
 
 ----------------------------------------------------------------------
@@ -183,7 +190,41 @@ INSERT INTO "MarketData" (id, "dataSource", symbol, date, "marketPrice", state) 
   ('md-blk-w32','MANUAL','BLK','2026-03-15',946.80,'CLOSE'),
   ('md-blk-w33','MANUAL','BLK','2026-03-22',943.50,'CLOSE'),
   ('md-blk-w34','MANUAL','BLK','2026-04-08',944.20,'CLOSE'),
-  ('md-blk-w35','MANUAL','BLK','2026-04-15',948.70,'CLOSE')
+  ('md-blk-w35','MANUAL','BLK','2026-04-15',948.70,'CLOSE'),
+  -- EUN (iShares Core MSCI Europe ETF, EUR-denominated)
+  ('md-eun-01','MANUAL','EUN','2025-05-01',68.20,'CLOSE'),
+  ('md-eun-02','MANUAL','EUN','2025-06-01',69.10,'CLOSE'),
+  ('md-eun-03','MANUAL','EUN','2025-07-01',70.30,'CLOSE'),
+  ('md-eun-04','MANUAL','EUN','2025-08-01',69.80,'CLOSE'),
+  ('md-eun-05','MANUAL','EUN','2025-09-01',71.50,'CLOSE'),
+  ('md-eun-06','MANUAL','EUN','2025-10-01',72.40,'CLOSE'),
+  ('md-eun-07','MANUAL','EUN','2025-11-01',73.10,'CLOSE'),
+  ('md-eun-08','MANUAL','EUN','2025-12-01',74.00,'CLOSE'),
+  ('md-eun-09','MANUAL','EUN','2026-01-01',75.20,'CLOSE'),
+  ('md-eun-10','MANUAL','EUN','2026-02-01',76.10,'CLOSE'),
+  ('md-eun-11','MANUAL','EUN','2026-03-01',77.30,'CLOSE'),
+  ('md-eun-12','MANUAL','EUN','2026-04-01',76.80,'CLOSE'),
+  ('md-eun-13','MANUAL','EUN','2026-04-22',77.50,'CLOSE')
+ON CONFLICT DO NOTHING;
+
+----------------------------------------------------------------------
+-- USDEUR Exchange Rate (YAHOO data source — matches DATA_SOURCE_EXCHANGE_RATES default)
+----------------------------------------------------------------------
+
+INSERT INTO "MarketData" (id, "dataSource", symbol, date, "marketPrice", state) VALUES
+  ('md-usdeur-01','YAHOO','USDEUR','2025-05-01',0.8950,'CLOSE'),
+  ('md-usdeur-02','YAHOO','USDEUR','2025-06-01',0.8910,'CLOSE'),
+  ('md-usdeur-03','YAHOO','USDEUR','2025-07-01',0.8870,'CLOSE'),
+  ('md-usdeur-04','YAHOO','USDEUR','2025-08-01',0.8920,'CLOSE'),
+  ('md-usdeur-05','YAHOO','USDEUR','2025-09-01',0.8840,'CLOSE'),
+  ('md-usdeur-06','YAHOO','USDEUR','2025-10-01',0.8800,'CLOSE'),
+  ('md-usdeur-07','YAHOO','USDEUR','2025-11-01',0.8760,'CLOSE'),
+  ('md-usdeur-08','YAHOO','USDEUR','2025-12-01',0.8730,'CLOSE'),
+  ('md-usdeur-09','YAHOO','USDEUR','2026-01-01',0.8690,'CLOSE'),
+  ('md-usdeur-10','YAHOO','USDEUR','2026-02-01',0.8650,'CLOSE'),
+  ('md-usdeur-11','YAHOO','USDEUR','2026-03-01',0.8610,'CLOSE'),
+  ('md-usdeur-12','YAHOO','USDEUR','2026-04-01',0.8640,'CLOSE'),
+  ('md-usdeur-13','YAHOO','USDEUR','2026-04-22',0.8620,'CLOSE')
 ON CONFLICT DO NOTHING;
 
 ----------------------------------------------------------------------
@@ -235,8 +276,30 @@ INSERT INTO "Order" (id, "accountId", "accountUserId", currency, date, fee, quan
   ('ord-blk-d4','acc-ibkr','${USER_ID}','USD','2026-03-24',0.00,56,'sp-blk','DIVIDEND',5.10,'${USER_ID}',false,NOW(),NOW()),
   ('ord-blk-d5','acc-schwab','${USER_ID}','USD','2026-03-24',0.00,61,'sp-blk','DIVIDEND',5.10,'${USER_ID}',false,NOW(),NOW()),
   -- BLK partial sell
-  ('ord-blk-s1','acc-ibkr','${USER_ID}','USD','2026-04-15',1.00,10,'sp-blk','SELL',946.30,'${USER_ID}',false,NOW(),NOW())
+  ('ord-blk-s1','acc-ibkr','${USER_ID}','USD','2026-04-15',1.00,10,'sp-blk','SELL',946.30,'${USER_ID}',false,NOW(),NOW()),
+  -- EUN (EUR-denominated, IBKR Europe account)
+  ('ord-eun-01','acc-ibkr-eur','${USER_ID}','EUR','2025-06-15',2.00,40,'sp-eun','BUY',69.00,'${USER_ID}',false,NOW(),NOW()),
+  ('ord-eun-02','acc-ibkr-eur','${USER_ID}','EUR','2025-10-10',2.00,30,'sp-eun','BUY',72.20,'${USER_ID}',false,NOW(),NOW()),
+  ('ord-eun-03','acc-ibkr-eur','${USER_ID}','EUR','2026-02-05',2.00,25,'sp-eun','BUY',75.90,'${USER_ID}',false,NOW(),NOW())
 ON CONFLICT DO NOTHING;
+SQL
+
+$PSQL <<SQL
+----------------------------------------------------------------------
+-- Ensure EUR appears in the currency list via PROPERTY_CURRENCIES
+----------------------------------------------------------------------
+
+INSERT INTO "Property" (key, value) VALUES
+  ('CURRENCIES', '["EUR"]')
+ON CONFLICT (key) DO UPDATE SET value = '["EUR"]';
+
+----------------------------------------------------------------------
+-- Demo user settings (default base currency USD; user can switch to EUR)
+----------------------------------------------------------------------
+
+INSERT INTO "Settings" ("userId", settings, "updatedAt") VALUES
+  ('${USER_ID}', '{"baseCurrency":"USD","isExperimentUser":true,"locale":"en-US"}', NOW())
+ON CONFLICT ("userId") DO UPDATE SET settings = '{"baseCurrency":"USD","isExperimentUser":true,"locale":"en-US"}', "updatedAt" = NOW();
 SQL
 
 echo "==> Demo data seeded."
