@@ -2043,17 +2043,24 @@ export class PortfolioService {
       totalInvestmentWithCurrencyEffect
     } = await portfolioCalculator.getSnapshot();
 
-    const { performance } = await this.getPerformance({
-      impersonationId,
-      userId
+    const { endDate, startDate } = getIntervalFromDateRange({
+      dateRange: 'max'
     });
 
-    const {
-      netPerformance,
-      netPerformancePercentage,
-      netPerformancePercentageWithCurrencyEffect,
-      netPerformanceWithCurrencyEffect
-    } = performance;
+    const { chart } = await portfolioCalculator.getPerformance({
+      end: endDate,
+      start: startDate
+    });
+
+    const lastChartEntry = chart?.at(-1);
+
+    const netPerformance = lastChartEntry?.netPerformance ?? 0;
+    const netPerformancePercentage =
+      lastChartEntry?.netPerformanceInPercentage ?? 0;
+    const netPerformancePercentageWithCurrencyEffect =
+      lastChartEntry?.netPerformanceInPercentageWithCurrencyEffect ?? 0;
+    const netPerformanceWithCurrencyEffect =
+      lastChartEntry?.netPerformanceWithCurrencyEffect ?? 0;
 
     const totalEmergencyFund = this.getTotalEmergencyFund({
       emergencyFundHoldingsValueInBaseCurrency,
