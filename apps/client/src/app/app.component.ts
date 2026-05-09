@@ -276,6 +276,13 @@ export class GfAppComponent implements OnInit {
     const storedScheme = localStorage.getItem('colorScheme') as ColorScheme;
     const effectiveScheme = userPreferredColorScheme || storedScheme;
 
+    // Keep localStorage in sync with the server-side preference so the
+    // inline script in index.html can apply the correct theme before
+    // Angular bootstraps on the next page load.
+    if (userPreferredColorScheme) {
+      localStorage.setItem('colorScheme', userPreferredColorScheme);
+    }
+
     const isDarkTheme = effectiveScheme
       ? effectiveScheme === 'DARK'
       : window.matchMedia('(prefers-color-scheme: dark)').matches;
