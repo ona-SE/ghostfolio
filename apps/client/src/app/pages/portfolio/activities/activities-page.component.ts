@@ -304,6 +304,54 @@ export class GfActivitiesPageComponent implements OnInit {
       });
   }
 
+  public onExportTaxCsv() {
+    this.dataService
+      .fetchTaxCsvExport({
+        filters: this.userService.getFilters()
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((data) => {
+        const headers = [
+          'Disposal Date',
+          'Acquisition Date',
+          'Symbol',
+          'Type',
+          'Quantity',
+          'Cost Basis',
+          'Proceeds',
+          'Gain/Loss',
+          'Currency',
+          'Account'
+        ];
+
+        const rows = data.items.map((item) => [
+          item.disposalDate
+            ? format(parseISO(item.disposalDate), 'yyyy-MM-dd')
+            : '',
+          item.acquisitionDate
+            ? format(parseISO(item.acquisitionDate), 'yyyy-MM-dd')
+            : '',
+          item.symbol,
+          item.type,
+          String(item.quantity),
+          String(item.costBasis),
+          String(item.proceeds),
+          String(item.gainLoss),
+          item.currency,
+          item.account
+        ]);
+
+        downloadAsFile({
+          content: { headers, rows },
+          fileName: `ghostfolio-tax-report-${format(
+            parseISO(data.meta.date),
+            'yyyyMMddHHmm'
+          )}.csv`,
+          format: 'csv'
+        });
+      });
+  }
+
   public onExportDrafts(activityIds?: string[]) {
     this.dataService
       .fetchExport({ activityIds })

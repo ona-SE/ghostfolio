@@ -65,6 +65,7 @@ import {
   documentTextOutline,
   ellipsisHorizontal,
   ellipsisVertical,
+  receiptOutline,
   tabletLandscapeOutline,
   trashOutline
 } from 'ionicons/icons';
@@ -127,6 +128,7 @@ export class GfActivitiesTableComponent implements AfterViewInit, OnInit {
   @Output() activityToUpdate = new EventEmitter<OrderWithAccount>();
   @Output() export = new EventEmitter<void>();
   @Output() exportCsv = new EventEmitter<void>();
+  @Output() exportTaxCsv = new EventEmitter<void>();
   @Output() exportDrafts = new EventEmitter<string[]>();
   @Output() import = new EventEmitter<void>();
   @Output() importDividends = new EventEmitter<AssetProfileIdentifier>();
@@ -217,6 +219,7 @@ export class GfActivitiesTableComponent implements AfterViewInit, OnInit {
       documentTextOutline,
       ellipsisHorizontal,
       ellipsisVertical,
+      receiptOutline,
       tabletLandscapeOutline,
       trashOutline
     });
@@ -322,6 +325,10 @@ export class GfActivitiesTableComponent implements AfterViewInit, OnInit {
 
   public onExportCsv() {
     this.exportCsv.emit();
+  }
+
+  public onExportTaxCsv() {
+    this.exportTaxCsv.emit();
   }
 
   public onExportDraft(aActivityId: string) {

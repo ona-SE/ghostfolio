@@ -2,7 +2,10 @@ import { HasPermissionGuard } from '@ghostfolio/api/guards/has-permission.guard'
 import { TransformDataSourceInRequestInterceptor } from '@ghostfolio/api/interceptors/transform-data-source-in-request/transform-data-source-in-request.interceptor';
 import { TransformDataSourceInResponseInterceptor } from '@ghostfolio/api/interceptors/transform-data-source-in-response/transform-data-source-in-response.interceptor';
 import { ApiService } from '@ghostfolio/api/services/api/api.service';
-import { ExportResponse } from '@ghostfolio/common/interfaces';
+import {
+  ExportResponse,
+  TaxCsvExportResponse
+} from '@ghostfolio/common/interfaces';
 import type { RequestWithUser } from '@ghostfolio/common/types';
 
 import {
@@ -55,6 +58,32 @@ export class ExportController {
       activityIds,
       activityTypes,
       filters,
+      userId: this.request.user.id,
+      userSettings: this.request.user.settings.settings
+    });
+  }
+
+  @Get('tax-csv')
+  @UseGuards(AuthGuard('jwt'), HasPermissionGuard)
+  @UseInterceptors(TransformDataSourceInRequestInterceptor)
+  public async exportTaxCsv(
+    @Query('accounts') filterByAccounts?: string,
+    @Query('tags') filterByTags?: string,
+    @Query('startDate') startDateParam?: string,
+    @Query('endDate') endDateParam?: string
+  ): Promise<TaxCsvExportResponse> {
+    const filters = this.apiService.buildFiltersFromQueryParams({
+      filterByAccounts,
+      filterByTags
+    });
+
+    const startDate = startDateParam ? new Date(startDateParam) : undefined;
+    const endDate = endDateParam ? new Date(endDateParam) : undefined;
+
+    return this.exportService.exportTaxCsv({
+      endDate,
+      filters,
+      startDate,
       userId: this.request.user.id,
       userSettings: this.request.user.settings.settings
     });
