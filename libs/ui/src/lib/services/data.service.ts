@@ -37,6 +37,7 @@ import {
   ExportResponse,
   Filter,
   ImportResponse,
+  TaxCsvExportResponse,
   InfoItem,
   LookupResponse,
   MarketDataDetailsResponse,
@@ -435,6 +436,36 @@ export class DataService {
     }
 
     return this.http.get<ExportResponse>('/api/v1/export', {
+      params
+    });
+  }
+
+  public fetchTaxCsvExport({
+    accounts,
+    endDate,
+    filters,
+    startDate
+  }: {
+    accounts?: string;
+    endDate?: string;
+    filters?: Filter[];
+    startDate?: string;
+  } = {}) {
+    let params = this.buildFiltersAsQueryParams({ filters });
+
+    if (accounts) {
+      params = params.append('accounts', accounts);
+    }
+
+    if (startDate) {
+      params = params.append('startDate', startDate);
+    }
+
+    if (endDate) {
+      params = params.append('endDate', endDate);
+    }
+
+    return this.http.get<TaxCsvExportResponse>('/api/v1/export/tax-csv', {
       params
     });
   }
