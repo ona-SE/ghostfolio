@@ -79,7 +79,17 @@ export class ImportController {
         user: this.request.user
       });
 
-      return { activities };
+      const errors = activities
+        .map((activity, index) => {
+          return activity.error ? { index, errors: [activity.error] } : null;
+        })
+        .filter(Boolean);
+
+      return {
+        activities,
+        ...(isDryRun && { isDryRun: true }),
+        ...(errors.length > 0 && { errors })
+      };
     } catch (error) {
       Logger.error(error, ImportController);
 
