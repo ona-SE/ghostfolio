@@ -22,6 +22,7 @@ import {
 import {
   Activity,
   ActivityError,
+  ActivityFieldError,
   AssetProfileIdentifier
 } from '@ghostfolio/common/interfaces';
 import { hasPermission, permissions } from '@ghostfolio/common/permissions';
@@ -653,21 +654,73 @@ export class ImportService {
       });
 
     return activitiesDto.map(
-      ({
-        accountId,
-        comment,
-        currency,
-        dataSource,
-        date: dateString,
-        fee,
-        quantity,
-        symbol,
-        tags,
-        type,
-        unitPrice
-      }) => {
+      (
+        {
+          accountId,
+          comment,
+          currency,
+          dataSource,
+          date: dateString,
+          fee,
+          quantity,
+          symbol,
+          tags,
+          type,
+          unitPrice
+        },
+        index
+      ) => {
+        // Field-level validation
+        const fieldErrors = this.validateActivityFields({
+          currency,
+          dataSource,
+          date: dateString,
+          fee,
+          index,
+          quantity,
+          symbol,
+          type,
+          unitPrice
+        });
+
+        if (fieldErrors.length > 0) {
+          return {
+            accountId,
+            comment,
+            currency,
+            date: dateString ? parseISO(dateString) : undefined,
+            error: {
+              code: 'VALIDATION_ERROR' as const,
+              message: `activities.${index} has ${fieldErrors.length} validation error(s)`,
+              details: fieldErrors
+            },
+            fee,
+            quantity,
+            type,
+            unitPrice,
+            SymbolProfile: {
+              dataSource,
+              symbol,
+              activitiesCount: undefined,
+              assetClass: undefined,
+              assetSubClass: undefined,
+              countries: undefined,
+              createdAt: undefined,
+              currency: undefined,
+              holdings: undefined,
+              id: undefined,
+              isActive: true,
+              sectors: undefined,
+              updatedAt: undefined
+            },
+            tagIds: tags
+          };
+        }
+
         const date = parseISO(dateString);
-        const isDuplicate = existingActivities.some((activity) => {
+
+        // Duplicate detection with existing activity reference
+        const duplicateActivity = existingActivities.find((activity) => {
           return (
             activity.accountId === accountId &&
             activity.comment === comment &&
@@ -683,8 +736,12 @@ export class ImportService {
           );
         });
 
-        const error: ActivityError = isDuplicate
-          ? { code: 'IS_DUPLICATE' }
+        const error: ActivityError = duplicateActivity
+          ? {
+              code: 'IS_DUPLICATE',
+              message: `Duplicate of existing activity ${duplicateActivity.id} (${duplicateActivity.SymbolProfile.symbol} on ${duplicateActivity.date.toISOString().split('T')[0]}). Consider updating the existing activity instead.`,
+              existingActivityId: duplicateActivity.id
+            }
           : undefined;
 
         return {
@@ -716,6 +773,131 @@ export class ImportService {
         };
       }
     );
+  }
+
+  private validateActivityFields({
+    currency,
+    dataSource,
+    date,
+    fee,
+    index,
+    quantity,
+    symbol,
+    type,
+    unitPrice
+  }: {
+    currency: string;
+    dataSource: DataSource;
+    date: string;
+    fee: number;
+    index: number;
+    quantity: number;
+    symbol: string;
+    type: string;
+    unitPrice: number;
+  }): ActivityFieldError[] {
+    const errors: ActivityFieldError[] = [];
+    const prefix = `activities.${index}`;
+
+    if (!symbol || (typeof symbol === 'string' && symbol.trim() === '')) {
+      errors.push({
+        field: `${prefix}.symbol`,
+        message: 'Symbol is required'
+      });
+    }
+
+    if (!type) {
+      errors.push({
+        field: `${prefix}.type`,
+        message: 'Type is required'
+      });
+    } else if (
+      ![
+        'BUY',
+        'DIVIDEND',
+        'FEE',
+        'INTEREST',
+        'ITEM',
+        'LIABILITY',
+        'SELL'
+      ].includes(type)
+    ) {
+      errors.push({
+        field: `${prefix}.type`,
+        message: `Type "${type}" is not valid. Expected one of: BUY, DIVIDEND, FEE, INTEREST, ITEM, LIABILITY, SELL`
+      });
+    }
+
+    if (!date) {
+      errors.push({
+        field: `${prefix}.date`,
+        message: 'Date is required'
+      });
+    } else {
+      const parsed = parseISO(date);
+
+      if (isNaN(parsed.getTime())) {
+        errors.push({
+          field: `${prefix}.date`,
+          message: `Date "${date}" is not a valid ISO 8601 date`
+        });
+      } else if (parsed.getFullYear() < 1970) {
+        errors.push({
+          field: `${prefix}.date`,
+          message: 'Date must be after 1970'
+        });
+      }
+    }
+
+    if (quantity === undefined || quantity === null) {
+      errors.push({
+        field: `${prefix}.quantity`,
+        message: 'Quantity is required'
+      });
+    } else if (typeof quantity !== 'number' || quantity < 0) {
+      errors.push({
+        field: `${prefix}.quantity`,
+        message: 'Quantity must be a non-negative number'
+      });
+    }
+
+    if (unitPrice === undefined || unitPrice === null) {
+      errors.push({
+        field: `${prefix}.unitPrice`,
+        message: 'Unit price is required'
+      });
+    } else if (typeof unitPrice !== 'number' || unitPrice < 0) {
+      errors.push({
+        field: `${prefix}.unitPrice`,
+        message: 'Unit price must be a non-negative number'
+      });
+    }
+
+    if (fee === undefined || fee === null) {
+      errors.push({
+        field: `${prefix}.fee`,
+        message: 'Fee is required'
+      });
+    } else if (typeof fee !== 'number' || fee < 0) {
+      errors.push({
+        field: `${prefix}.fee`,
+        message: 'Fee must be a non-negative number'
+      });
+    }
+
+    if (
+      !['FEE', 'INTEREST', 'LIABILITY'].includes(type) &&
+      !currency &&
+      !dataSource
+    ) {
+      errors.push({
+        field: `${prefix}.currency`,
+        message:
+          'Currency is required for activity types other than FEE, INTEREST, and LIABILITY'
+      });
+    }
+
+    return errors;
   }
 
   private isUniqueAccount(accounts: AccountWithValue[]) {

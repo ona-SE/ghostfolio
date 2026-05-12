@@ -1,6 +1,10 @@
 import type { Access } from './access.interface';
 import type { AccountBalance } from './account-balance.interface';
-import type { Activity, ActivityError } from './activities.interface';
+import type {
+  Activity,
+  ActivityError,
+  ActivityFieldError
+} from './activities.interface';
 import type { AdminData } from './admin-data.interface';
 import type { AdminJobs } from './admin-jobs.interface';
 import type { AdminMarketDataDetails } from './admin-market-data-details.interface';
@@ -112,6 +116,7 @@ export {
   ActivitiesResponse,
   Activity,
   ActivityError,
+  ActivityFieldError,
   ActivityResponse,
   AdminData,
   AdminJobs,
