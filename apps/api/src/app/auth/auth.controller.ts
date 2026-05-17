@@ -22,7 +22,6 @@ import {
   VERSION_NEUTRAL
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ThrottlerGuard } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import { getReasonPhrase, StatusCodes } from 'http-status-codes';
 
@@ -56,7 +55,6 @@ export class AuthController {
   }
 
   @Post('anonymous')
-  @UseGuards(ThrottlerGuard)
   public async accessTokenLogin(
     @Body() body: { accessToken: string }
   ): Promise<OAuthResponse> {

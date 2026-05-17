@@ -1,4 +1,9 @@
 import { EventsModule } from '@ghostfolio/api/events/events.module';
+import {
+  RATE_LIMIT_BASIC,
+  RATE_LIMIT_TTL,
+  UserTierThrottlerGuard
+} from '@ghostfolio/api/guards/user-tier-throttler.guard';
 import { BullBoardAuthMiddleware } from '@ghostfolio/api/middlewares/bull-board-auth.middleware';
 import { HtmlTemplateMiddleware } from '@ghostfolio/api/middlewares/html-template.middleware';
 import { ConfigurationModule } from '@ghostfolio/api/services/configuration/configuration.module';
@@ -21,6 +26,7 @@ import { BullBoardModule } from '@bull-board/nestjs';
 import { BullModule } from '@nestjs/bull';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ServeStaticModule } from '@nestjs/serve-static';
@@ -174,16 +180,22 @@ import { UserModule } from './user/user.module';
     ThrottlerModule.forRoot({
       throttlers: [
         {
-          name: 'public-api',
-          ttl: 900000, // 15 minutes in milliseconds
-          limit: 100
+          name: 'user-tier',
+          ttl: RATE_LIMIT_TTL,
+          limit: RATE_LIMIT_BASIC
         }
       ]
     }),
     UserModule,
     WatchlistModule
   ],
-  providers: [I18nService]
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: UserTierThrottlerGuard
+    },
+    I18nService
+  ]
 })
 export class AppModule implements NestModule {
   public configure(consumer: MiddlewareConsumer) {
