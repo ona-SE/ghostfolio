@@ -123,6 +123,59 @@
   }
 </div>
 
+@if (showBulkActions() && selectedRows.selected.length > 0) {
+  <div class="align-items-center bulk-actions-toolbar d-flex gap-2 mb-2 p-2">
+    <span class="text-muted" i18n
+      >{{ selectedRows.selected.length }}
+      {selectedRows.selected.length, plural, =1 {activity} other {activities}}
+      selected</span
+    >
+    <button
+      mat-stroked-button
+      [matMenuTriggerFor]="addTagMenu"
+      (click)="$event.stopPropagation()"
+    >
+      <span class="align-items-center d-flex">
+        <ion-icon class="mr-1" name="pricetag-outline" />
+        <span i18n>Add Tag</span>
+      </span>
+    </button>
+    <mat-menu #addTagMenu="matMenu">
+      @for (tag of tags(); track tag.id) {
+        <button mat-menu-item (click)="onBulkTagAdd(tag.id)">
+          {{ tag.name }}
+        </button>
+      }
+      @if (tags().length === 0) {
+        <button disabled i18n mat-menu-item>No tags available</button>
+      }
+    </mat-menu>
+    <button
+      mat-stroked-button
+      [matMenuTriggerFor]="removeTagMenu"
+      (click)="$event.stopPropagation()"
+    >
+      <span class="align-items-center d-flex">
+        <ion-icon class="mr-1" name="close-outline" />
+        <span i18n>Remove Tag</span>
+      </span>
+    </button>
+    <mat-menu #removeTagMenu="matMenu">
+      @for (tag of tags(); track tag.id) {
+        <button mat-menu-item (click)="onBulkTagRemove(tag.id)">
+          {{ tag.name }}
+        </button>
+      }
+      @if (tags().length === 0) {
+        <button disabled i18n mat-menu-item>No tags available</button>
+      }
+    </mat-menu>
+    <button mat-button (click)="clearSelection()">
+      <span i18n>Clear Selection</span>
+    </button>
+  </div>
+}
+
 <div class="overflow-x-auto">
   <table
     class="gf-table w-100"

@@ -29,6 +29,7 @@ import { Sort, SortDirection } from '@angular/material/sort';
 import { MatTableDataSource } from '@angular/material/table';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { IonIcon } from '@ionic/angular/standalone';
+import { Tag } from '@prisma/client';
 import { format, parseISO } from 'date-fns';
 import { addIcons } from 'ionicons';
 import { addOutline } from 'ionicons/icons';
@@ -60,11 +61,13 @@ export class GfActivitiesPageComponent implements OnInit {
   public hasImpersonationId: boolean;
   public hasPermissionToCreateActivity: boolean;
   public hasPermissionToDeleteActivity: boolean;
+  public hasPermissionToUpdateActivity: boolean;
   public pageIndex = 0;
   public pageSize = DEFAULT_PAGE_SIZE;
   public routeQueryParams: Subscription;
   public sortColumn = 'date';
   public sortDirection: SortDirection = 'desc';
+  public tags: Tag[] = [];
   public totalItems: number | undefined;
   public user: User;
 
@@ -119,6 +122,14 @@ export class GfActivitiesPageComponent implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((impersonationId) => {
         this.hasImpersonationId = !!impersonationId;
+      });
+
+    this.dataService
+      .fetchTags()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((tags) => {
+        this.tags = tags;
+        this.changeDetectorRef.markForCheck();
       });
 
     this.userService.stateChanged
@@ -188,6 +199,38 @@ export class GfActivitiesPageComponent implements OnInit {
 
   public onCloneActivity(aActivity: Activity) {
     this.openCreateActivityDialog(aActivity);
+  }
+
+  public onBulkTagAdd({
+    activityIds,
+    tagIds
+  }: {
+    activityIds: string[];
+    tagIds: string[];
+  }) {
+    this.dataService
+      .bulkUpdateActivitiesTags({ activityIds, mode: 'add', tagIds })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.fetchActivities();
+        this.changeDetectorRef.markForCheck();
+      });
+  }
+
+  public onBulkTagRemove({
+    activityIds,
+    tagIds
+  }: {
+    activityIds: string[];
+    tagIds: string[];
+  }) {
+    this.dataService
+      .bulkUpdateActivitiesTags({ activityIds, mode: 'remove', tagIds })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.fetchActivities();
+        this.changeDetectorRef.markForCheck();
+      });
   }
 
   public onDeleteActivities() {
@@ -552,5 +595,8 @@ export class GfActivitiesPageComponent implements OnInit {
     this.hasPermissionToDeleteActivity =
       !this.hasImpersonationId &&
       hasPermission(this.user.permissions, permissions.deleteActivity);
+    this.hasPermissionToUpdateActivity =
+      !this.hasImpersonationId &&
+      hasPermission(this.user.permissions, permissions.updateActivity);
   }
 }

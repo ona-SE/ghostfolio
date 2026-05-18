@@ -19,14 +19,18 @@
           hasPermissionToDeleteActivity &&
           !user.settings.isRestrictedView
         "
+        [showBulkActions]="hasPermissionToUpdateActivity"
         [sortColumn]="sortColumn"
         [sortDirection]="sortDirection"
+        [tags]="tags"
         [totalItems]="totalItems"
         (activitiesDeleted)="onDeleteActivities()"
         (activityClicked)="onClickActivity($event)"
         (activityDeleted)="onDeleteActivity($event)"
         (activityToClone)="onCloneActivity($event)"
         (activityToUpdate)="onUpdateActivity($event)"
+        (bulkTagAdd)="onBulkTagAdd($event)"
+        (bulkTagRemove)="onBulkTagRemove($event)"
         (export)="onExport()"
         (exportCsv)="onExportCsv()"
         (exportDrafts)="onExportDrafts($event)"

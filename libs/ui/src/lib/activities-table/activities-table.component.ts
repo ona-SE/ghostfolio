@@ -57,6 +57,7 @@ import { addIcons } from 'ionicons';
 import {
   alertCircleOutline,
   calendarClearOutline,
+  closeOutline,
   cloudDownloadOutline,
   cloudUploadOutline,
   colorWandOutline,
@@ -65,6 +66,7 @@ import {
   documentTextOutline,
   ellipsisHorizontal,
   ellipsisVertical,
+  pricetagOutline,
   receiptOutline,
   tabletLandscapeOutline,
   trashOutline
@@ -126,6 +128,14 @@ export class GfActivitiesTableComponent implements AfterViewInit, OnInit {
   @Output() activityDeleted = new EventEmitter<string>();
   @Output() activityToClone = new EventEmitter<OrderWithAccount>();
   @Output() activityToUpdate = new EventEmitter<OrderWithAccount>();
+  @Output() bulkTagAdd = new EventEmitter<{
+    activityIds: string[];
+    tagIds: string[];
+  }>();
+  @Output() bulkTagRemove = new EventEmitter<{
+    activityIds: string[];
+    tagIds: string[];
+  }>();
   @Output() export = new EventEmitter<void>();
   @Output() exportCsv = new EventEmitter<void>();
   @Output() exportTaxCsv = new EventEmitter<void>();
@@ -151,8 +161,10 @@ export class GfActivitiesTableComponent implements AfterViewInit, OnInit {
     MatTableDataSource<Activity> | undefined
   >();
   public readonly showAccountColumn = input(true);
+  public readonly showBulkActions = input(false);
   public readonly showCheckbox = input(false);
   public readonly showNameColumn = input(true);
+  public readonly tags = input<{ id: string; name: string }[]>([]);
 
   protected readonly displayedColumns = computed(() => {
     let columns = [
@@ -179,9 +191,16 @@ export class GfActivitiesTableComponent implements AfterViewInit, OnInit {
       });
     }
 
-    if (!this.showCheckbox()) {
+    if (!this.showCheckbox() && !this.showBulkActions()) {
       columns = columns.filter((column) => {
         return column !== 'importStatus' && column !== 'select';
+      });
+    }
+
+    if (this.showBulkActions() && !this.showCheckbox()) {
+      // Keep 'select' but remove 'importStatus' for bulk actions mode
+      columns = columns.filter((column) => {
+        return column !== 'importStatus';
       });
     }
 
@@ -211,6 +230,7 @@ export class GfActivitiesTableComponent implements AfterViewInit, OnInit {
     addIcons({
       alertCircleOutline,
       calendarClearOutline,
+      closeOutline,
       cloudDownloadOutline,
       cloudUploadOutline,
       colorWandOutline,
@@ -219,6 +239,7 @@ export class GfActivitiesTableComponent implements AfterViewInit, OnInit {
       documentTextOutline,
       ellipsisHorizontal,
       ellipsisVertical,
+      pricetagOutline,
       receiptOutline,
       tabletLandscapeOutline,
       trashOutline
@@ -228,6 +249,14 @@ export class GfActivitiesTableComponent implements AfterViewInit, OnInit {
   public ngOnInit() {
     if (this.showCheckbox()) {
       this.toggleAllRows();
+      this.selectedRows.changed
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe((selectedRows) => {
+          this.selectedActivities.emit(selectedRows.source.selected);
+        });
+    }
+
+    if (this.showBulkActions()) {
       this.selectedRows.changed
         .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe((selectedRows) => {
@@ -282,11 +311,33 @@ export class GfActivitiesTableComponent implements AfterViewInit, OnInit {
     this.pageChanged.emit(page);
   }
 
+  public onBulkTagAdd(tagId: string) {
+    const activityIds = this.selectedRows.selected.map(({ id }) => id);
+
+    if (activityIds.length > 0) {
+      this.bulkTagAdd.emit({ activityIds, tagIds: [tagId] });
+    }
+  }
+
+  public onBulkTagRemove(tagId: string) {
+    const activityIds = this.selectedRows.selected.map(({ id }) => id);
+
+    if (activityIds.length > 0) {
+      this.bulkTagRemove.emit({ activityIds, tagIds: [tagId] });
+    }
+  }
+
+  public clearSelection() {
+    this.selectedRows.clear();
+  }
+
   public onClickActivity(activity: Activity) {
     if (this.showCheckbox()) {
       if (!activity.error) {
         this.selectedRows.toggle(activity);
       }
+    } else if (this.showBulkActions()) {
+      this.selectedRows.toggle(activity);
     } else if (this.canClickActivity(activity)) {
       this.activityClicked.emit({
         dataSource: activity.SymbolProfile.dataSource,

@@ -1,4 +1,5 @@
 import {
+  BulkUpdateActivitiesTagsDto,
   CreateAccessDto,
   CreateAccountBalanceDto,
   CreateAccountDto,
@@ -337,6 +338,13 @@ export class DataService {
 
   public deleteActivity(aId: string) {
     return this.http.delete<Order>(`/api/v1/activities/${aId}`);
+  }
+
+  public bulkUpdateActivitiesTags(data: BulkUpdateActivitiesTagsDto) {
+    return this.http.patch<{ updated: number }>(
+      '/api/v1/activities/tags',
+      data
+    );
   }
 
   public deleteBenchmark({ dataSource, symbol }: AssetProfileIdentifier) {
