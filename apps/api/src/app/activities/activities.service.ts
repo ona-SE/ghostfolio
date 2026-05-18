@@ -97,6 +97,53 @@ export class ActivitiesService {
     );
   }
 
+  public async bulkUpdateTags({
+    activityIds,
+    mode,
+    tagIds,
+    userId
+  }: {
+    activityIds: string[];
+    mode: 'add' | 'remove';
+    tagIds: string[];
+    userId: string;
+  }): Promise<number> {
+    // Verify all activities belong to the user
+    const activities = await this.orderRepository.findMany({
+      where: {
+        id: { in: activityIds },
+        userId
+      }
+    });
+
+    if (activities.length !== activityIds.length) {
+      throw new Error('One or more activities not found or not owned by user');
+    }
+
+    const tagConnections = tagIds.map((id) => ({ id }));
+
+    await Promise.all(
+      activities.map(({ id }) =>
+        this.orderRepository.update({
+          data: {
+            tags:
+              mode === 'add'
+                ? { connect: tagConnections }
+                : { disconnect: tagConnections }
+          },
+          where: { id }
+        })
+      )
+    );
+
+    this.eventEmitter.emit(
+      PortfolioChangedEvent.getName(),
+      new PortfolioChangedEvent({ userId })
+    );
+
+    return activities.length;
+  }
+
   public async createActivity(
     data: Prisma.OrderCreateInput & {
       accountId?: string;

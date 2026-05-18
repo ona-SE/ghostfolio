@@ -1,4 +1,5 @@
 import { AuthDeviceDto } from './auth-device.dto';
+import { BulkUpdateActivitiesTagsDto } from './bulk-update-activities-tags.dto';
 import { CreateAccessDto } from './create-access.dto';
 import { CreateAccountBalanceDto } from './create-account-balance.dto';
 import { CreateAccountWithBalancesDto } from './create-account-with-balances.dto';
@@ -25,6 +26,7 @@ import { UpdateUserSettingDto } from './update-user-setting.dto';
 
 export {
   AuthDeviceDto,
+  BulkUpdateActivitiesTagsDto,
   CreateAccessDto,
   CreateAccountBalanceDto,
   CreateAccountDto,
