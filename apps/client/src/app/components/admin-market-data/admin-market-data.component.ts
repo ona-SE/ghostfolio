@@ -369,11 +369,7 @@ export class GfAdminMarketDataComponent implements AfterViewInit, OnInit {
   ) {
     this.isLoading = true;
 
-    this.pageSize =
-      this.activeFilters.length === 1 &&
-      this.activeFilters[0].type === 'PRESET_ID'
-        ? Number.MAX_SAFE_INTEGER
-        : DEFAULT_PAGE_SIZE;
+    this.pageSize = DEFAULT_PAGE_SIZE;
 
     if (pageIndex === 0 && this.paginator) {
       this.paginator.pageIndex = 0;
