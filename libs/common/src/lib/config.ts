@@ -27,6 +27,12 @@ export const secondaryColorRgb = {
   b: 207
 };
 
+export const benchmarkColorRgb = {
+  r: 239,
+  g: 158,
+  b: 49
+};
+
 export const warnColorHex = '#dc3545';
 export const warnColorRgb = {
   r: 220,

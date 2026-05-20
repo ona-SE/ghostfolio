@@ -68,6 +68,7 @@ export class GfAnalysisPageComponent implements OnInit {
 
   public benchmark: Partial<SymbolProfile>;
   public benchmarkDataItems: HistoricalDataItem[] = [];
+  public benchmarkPerformanceDataItems: HistoricalDataItem[] = [];
   public benchmarks: Partial<SymbolProfile>[];
   public bottom3: PortfolioPosition[];
   public deviceType: string;
@@ -372,6 +373,7 @@ export class GfAnalysisPageComponent implements OnInit {
 
   private updateBenchmarkDataItems() {
     this.benchmarkDataItems = [];
+    this.benchmarkPerformanceDataItems = [];
 
     if (this.user.settings.benchmark) {
       const { dataSource, symbol } =
@@ -398,6 +400,23 @@ export class GfAnalysisPageComponent implements OnInit {
                 value
               };
             });
+
+            // Scale benchmark % data to absolute values for the Portfolio
+            // Evolution chart. Uses the portfolio's starting value so the
+            // benchmark line shows "what would the portfolio be worth if it
+            // tracked this index."
+            const startingValue = this.performanceDataItems?.[0]?.value;
+
+            if (isNumber(startingValue) && startingValue !== 0) {
+              this.benchmarkPerformanceDataItems = marketData.map(
+                ({ date, value }) => {
+                  return {
+                    date,
+                    value: startingValue * (1 + value / 100)
+                  };
+                }
+              );
+            }
 
             this.isLoadingBenchmarkComparator = false;
 
