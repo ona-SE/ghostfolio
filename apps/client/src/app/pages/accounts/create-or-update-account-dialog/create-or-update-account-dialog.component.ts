@@ -72,6 +72,7 @@ export class GfCreateOrUpdateAccountDialogComponent {
       balance: [this.data.account.balance, Validators.required],
       comment: [this.data.account.comment],
       currency: [this.data.account.currency, Validators.required],
+      isDrip: [this.data.account.isDrip],
       isExcluded: [this.data.account.isExcluded],
       name: [this.data.account.name, Validators.required],
       platformId: [null, this.autocompleteObjectValidator()]
@@ -131,6 +132,7 @@ export class GfCreateOrUpdateAccountDialogComponent {
       comment: this.accountForm.get('comment')?.value || null,
       currency: this.accountForm.get('currency')?.value,
       id: this.accountForm.get('accountId')?.value,
+      isDrip: this.accountForm.get('isDrip')?.value,
       isExcluded: this.accountForm.get('isExcluded')?.value,
       name: this.accountForm.get('name')?.value,
       platformId: this.accountForm.get('platformId')?.value?.id || null

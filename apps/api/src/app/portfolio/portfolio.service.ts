@@ -76,6 +76,7 @@ import {
   Order,
   Platform,
   Prisma,
+  SymbolProfile,
   Tag
 } from '@prisma/client';
 import { Big } from 'big.js';
@@ -182,6 +183,7 @@ export class PortfolioService {
       accounts.map(async (account) => {
         let activitiesCount = 0;
         let dividendInBaseCurrency = 0;
+        let dripDividendInBaseCurrency = 0;
         let interestInBaseCurrency = 0;
 
         for (const {
@@ -219,6 +221,17 @@ export class PortfolioService {
           }
         }
 
+        // Compute DRIP-linked dividends for accounts with isDrip enabled.
+        // A dividend is considered reinvested when a BUY order for the same
+        // symbol follows the dividend within the same account.
+        if (account.isDrip) {
+          dripDividendInBaseCurrency =
+            await this.computeDripDividendInBaseCurrency(
+              account.activities,
+              userCurrency
+            );
+        }
+
         const valueInBaseCurrency =
           details.accounts[account.id]?.valueInBaseCurrency ?? 0;
 
@@ -226,6 +239,7 @@ export class PortfolioService {
           ...account,
           activitiesCount,
           dividendInBaseCurrency,
+          dripDividendInBaseCurrency,
           interestInBaseCurrency,
           valueInBaseCurrency,
           allocationInPercentage: 0,
@@ -282,6 +296,7 @@ export class PortfolioService {
 
     let totalBalanceInBaseCurrency = new Big(0);
     let totalDividendInBaseCurrency = new Big(0);
+    let totalDripDividendInBaseCurrency = new Big(0);
     let totalInterestInBaseCurrency = new Big(0);
     let totalValueInBaseCurrency = new Big(0);
 
@@ -293,6 +308,9 @@ export class PortfolioService {
       );
       totalDividendInBaseCurrency = totalDividendInBaseCurrency.plus(
         account.dividendInBaseCurrency
+      );
+      totalDripDividendInBaseCurrency = totalDripDividendInBaseCurrency.plus(
+        account.dripDividendInBaseCurrency
       );
       totalInterestInBaseCurrency = totalInterestInBaseCurrency.plus(
         account.interestInBaseCurrency
@@ -316,6 +334,8 @@ export class PortfolioService {
       activitiesCount,
       totalBalanceInBaseCurrency: totalBalanceInBaseCurrency.toNumber(),
       totalDividendInBaseCurrency: totalDividendInBaseCurrency.toNumber(),
+      totalDripDividendInBaseCurrency:
+        totalDripDividendInBaseCurrency.toNumber(),
       totalInterestInBaseCurrency: totalInterestInBaseCurrency.toNumber(),
       totalValueInBaseCurrency: totalValueInBaseCurrency.toNumber()
     };
@@ -1733,6 +1753,99 @@ export class PortfolioService {
         updatedAt: account.updatedAt
       };
     });
+  }
+
+  /**
+   * For DRIP-enabled accounts, computes the portion of dividends that were
+   * reinvested. A dividend is considered reinvested when a BUY order for the
+   * same symbol exists on or after the dividend date. The reinvested amount
+   * is capped at the lesser of the dividend value and the buy order value.
+   */
+  private async computeDripDividendInBaseCurrency(
+    activities: (Order & { SymbolProfile?: SymbolProfile })[],
+    userCurrency: string
+  ): Promise<number> {
+    // Sort activities by date ascending
+    const sorted = [...activities].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    // Group dividends and buys by symbol
+    const dividendsBySymbol = new Map<
+      string,
+      (Order & { SymbolProfile?: SymbolProfile })[]
+    >();
+    const buysBySymbol = new Map<
+      string,
+      (Order & { SymbolProfile?: SymbolProfile })[]
+    >();
+
+    for (const activity of sorted) {
+      const symbol = activity.SymbolProfile?.symbol;
+
+      if (!symbol) {
+        continue;
+      }
+
+      if (activity.type === 'DIVIDEND') {
+        if (!dividendsBySymbol.has(symbol)) {
+          dividendsBySymbol.set(symbol, []);
+        }
+
+        dividendsBySymbol.get(symbol).push(activity);
+      } else if (activity.type === 'BUY') {
+        if (!buysBySymbol.has(symbol)) {
+          buysBySymbol.set(symbol, []);
+        }
+
+        buysBySymbol.get(symbol).push(activity);
+      }
+    }
+
+    let totalDripInBaseCurrency = 0;
+
+    for (const [symbol, dividends] of dividendsBySymbol) {
+      const buys = buysBySymbol.get(symbol) ?? [];
+      let buyIndex = 0;
+
+      for (const dividend of dividends) {
+        const dividendValue = new Big(dividend.quantity).mul(
+          dividend.unitPrice
+        );
+        const dividendDate = new Date(dividend.date).getTime();
+
+        // Find the next buy on or after the dividend date
+        while (
+          buyIndex < buys.length &&
+          new Date(buys[buyIndex].date).getTime() < dividendDate
+        ) {
+          buyIndex++;
+        }
+
+        if (buyIndex < buys.length) {
+          const buy = buys[buyIndex];
+          const buyValue = new Big(buy.quantity).mul(buy.unitPrice);
+
+          // Reinvested amount is the lesser of dividend and buy values
+          const reinvestedAmount = dividendValue.lt(buyValue)
+            ? dividendValue
+            : buyValue;
+
+          const reinvestedInBaseCurrency =
+            await this.exchangeRateDataService.toCurrencyAtDate(
+              reinvestedAmount.toNumber(),
+              dividend.currency ?? dividend.SymbolProfile?.currency,
+              userCurrency,
+              dividend.date
+            );
+
+          totalDripInBaseCurrency += reinvestedInBaseCurrency;
+          buyIndex++;
+        }
+      }
+    }
+
+    return totalDripInBaseCurrency;
   }
 
   private getDividendsByGroup({

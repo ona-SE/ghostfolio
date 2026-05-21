@@ -184,6 +184,7 @@ export class GfAccountsPageComponent implements OnInit {
     comment,
     currency,
     id,
+    isDrip,
     isExcluded,
     name,
     platformId
@@ -198,6 +199,7 @@ export class GfAccountsPageComponent implements OnInit {
           comment,
           currency,
           id,
+          isDrip,
           isExcluded,
           name,
           platformId
@@ -273,6 +275,7 @@ export class GfAccountsPageComponent implements OnInit {
           comment: null,
           currency: this.user?.settings?.baseCurrency,
           id: null,
+          isDrip: false,
           isExcluded: false,
           name: null,
           platformId: null

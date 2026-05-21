@@ -29,6 +29,10 @@ export class UpdateAccountDto {
 
   @IsBoolean()
   @IsOptional()
+  isDrip?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
   isExcluded?: boolean;
 
   @IsString()
