@@ -171,6 +171,7 @@ describe('PortfolioCalculator', () => {
             createdAt: parseDate('2023-12-31'),
             currency: 'USD',
             id: accountId,
+            isDrip: false,
             isExcluded: false,
             name: 'USD',
             platformId: null,

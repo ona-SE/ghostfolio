@@ -34,6 +34,7 @@ model Account {
   createdAt  DateTime         @default(now())
   currency   String?
   id         String           @default(uuid())
+  isDrip     Boolean          @default(false)
   isExcluded Boolean          @default(false)
   name       String?
   platform   Platform?        @relation(fields: [platformId], references: [id])
@@ -45,6 +46,7 @@ model Account {
   @@id([id, userId])
   @@index([currency])
   @@index([id])
+  @@index([isDrip])
   @@index([isExcluded])
   @@index([name])
   @@index([userId])

@@ -95,6 +95,7 @@ export class ExportService {
           comment,
           currency,
           id,
+          isDrip,
           isExcluded,
           name,
           platform,
@@ -112,6 +113,7 @@ export class ExportService {
             comment,
             currency,
             id,
+            isDrip,
             isExcluded,
             name,
             platformId

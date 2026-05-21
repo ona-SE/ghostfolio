@@ -5,6 +5,7 @@ export interface AccountsResponse {
   activitiesCount: number;
   totalBalanceInBaseCurrency: number;
   totalDividendInBaseCurrency: number;
+  totalDripDividendInBaseCurrency: number;
   totalInterestInBaseCurrency: number;
   totalValueInBaseCurrency: number;
 }
