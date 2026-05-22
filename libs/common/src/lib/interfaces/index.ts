@@ -85,6 +85,10 @@ import type {
   TaxCsvExportItem,
   TaxCsvExportResponse
 } from './responses/tax-csv-export-response.interface';
+import type {
+  TaxReportItem,
+  TaxReportResponse
+} from './responses/tax-report-response.interface';
 import type { WatchlistResponse } from './responses/watchlist-response.interface';
 import type { RuleSettings } from './rule-settings.interface';
 import type { ScraperConfiguration } from './scraper-configuration.interface';
@@ -198,6 +202,8 @@ export {
   TabConfiguration,
   TaxCsvExportItem,
   TaxCsvExportResponse,
+  TaxReportItem,
+  TaxReportResponse,
   ToggleOption,
   User,
   UserItem,
