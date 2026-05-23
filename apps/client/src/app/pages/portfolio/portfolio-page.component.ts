@@ -15,6 +15,7 @@ import { addIcons } from 'ionicons';
 import {
   analyticsOutline,
   calculatorOutline,
+  documentTextOutline,
   pieChartOutline,
   scanOutline,
   swapVerticalOutline
@@ -67,6 +68,13 @@ export class PortfolioPageComponent implements OnInit {
               routerLink: internalRoutes.portfolio.subRoutes.fire.routerLink
             },
             {
+              iconName: 'document-text-outline',
+              label: internalRoutes.portfolio.subRoutes.tax.title,
+              routerLink: internalRoutes.portfolio.subRoutes.tax.routerLink,
+              showCondition:
+                state.user?.settings?.isExperimentalFeatures === true
+            },
+            {
               iconName: 'scan-outline',
               label: internalRoutes.portfolio.subRoutes.xRay.title,
               routerLink: internalRoutes.portfolio.subRoutes.xRay.routerLink
@@ -81,6 +89,7 @@ export class PortfolioPageComponent implements OnInit {
     addIcons({
       analyticsOutline,
       calculatorOutline,
+      documentTextOutline,
       pieChartOutline,
       scanOutline,
       swapVerticalOutline
