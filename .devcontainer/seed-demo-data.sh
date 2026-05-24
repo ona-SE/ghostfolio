@@ -293,13 +293,18 @@ INSERT INTO "Property" (key, value) VALUES
   ('CURRENCIES', '["EUR"]')
 ON CONFLICT (key) DO UPDATE SET value = '["EUR"]';
 
+-- Expose demo user so /api/v1/info returns a demoAuthToken for E2E tests
+INSERT INTO "Property" (key, value) VALUES
+  ('DEMO_USER_ID', '"${USER_ID}"')
+ON CONFLICT (key) DO UPDATE SET value = '"${USER_ID}"';
+
 ----------------------------------------------------------------------
 -- Demo user settings (default base currency USD; user can switch to EUR)
 ----------------------------------------------------------------------
 
 INSERT INTO "Settings" ("userId", settings, "updatedAt") VALUES
-  ('${USER_ID}', '{"baseCurrency":"USD","isExperimentUser":true,"locale":"en-US"}', NOW())
-ON CONFLICT ("userId") DO UPDATE SET settings = '{"baseCurrency":"USD","isExperimentUser":true,"locale":"en-US"}', "updatedAt" = NOW();
+  ('${USER_ID}', '{"baseCurrency":"USD","isExperimentalFeatures":true,"locale":"en-US"}', NOW())
+ON CONFLICT ("userId") DO UPDATE SET settings = '{"baseCurrency":"USD","isExperimentalFeatures":true,"locale":"en-US"}', "updatedAt" = NOW();
 SQL
 
 echo "==> Demo data seeded."
