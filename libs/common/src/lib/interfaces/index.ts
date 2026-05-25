@@ -86,8 +86,12 @@ import type {
   TaxCsvExportResponse
 } from './responses/tax-csv-export-response.interface';
 import type {
+  CostBasisMethod,
+  SimulateSellResponse,
   TaxReportItem,
-  TaxReportResponse
+  TaxReportResponse,
+  UnrealizedLot,
+  UnrealizedLotsResponse
 } from './responses/tax-report-response.interface';
 import type { WatchlistResponse } from './responses/watchlist-response.interface';
 import type { RuleSettings } from './rule-settings.interface';
@@ -200,10 +204,14 @@ export {
   SymbolMetrics,
   SystemMessage,
   TabConfiguration,
+  CostBasisMethod,
+  SimulateSellResponse,
   TaxCsvExportItem,
   TaxCsvExportResponse,
   TaxReportItem,
   TaxReportResponse,
+  UnrealizedLot,
+  UnrealizedLotsResponse,
   ToggleOption,
   User,
   UserItem,

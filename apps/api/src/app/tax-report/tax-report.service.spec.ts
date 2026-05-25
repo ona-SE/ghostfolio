@@ -526,4 +526,448 @@ describe('TaxReportService', () => {
       expect(items).toHaveLength(0);
     });
   });
+
+  describe('computeTaxReportItems with LIFO', () => {
+    const accountMap = new Map([['acc-1', 'Main Brokerage']]);
+    const startDate = new Date('2024-01-01T00:00:00.000Z');
+    const endDate = new Date('2024-12-31T23:59:59.999Z');
+
+    function makeActivity(overrides: {
+      accountId?: string;
+      currency?: string;
+      date: string;
+      fee?: number;
+      quantity: number;
+      symbol: string;
+      type: string;
+      unitPrice: number;
+    }) {
+      return {
+        accountId: overrides.accountId ?? 'acc-1',
+        currency: overrides.currency ?? undefined,
+        date: new Date(overrides.date),
+        fee: overrides.fee ?? 0,
+        quantity: overrides.quantity,
+        SymbolProfile: {
+          currency: overrides.currency ?? 'USD',
+          symbol: overrides.symbol
+        },
+        type: overrides.type,
+        unitPrice: overrides.unitPrice
+      };
+    }
+
+    it('should match the most recent buy first under LIFO', () => {
+      const activities = [
+        makeActivity({
+          date: '2024-01-10',
+          type: 'BUY',
+          symbol: 'GOOG',
+          quantity: 5,
+          unitPrice: 300,
+          fee: 0
+        }),
+        makeActivity({
+          date: '2024-03-10',
+          type: 'BUY',
+          symbol: 'GOOG',
+          quantity: 5,
+          unitPrice: 320,
+          fee: 0
+        }),
+        makeActivity({
+          date: '2024-07-10',
+          type: 'SELL',
+          symbol: 'GOOG',
+          quantity: 3,
+          unitPrice: 350,
+          fee: 0
+        })
+      ];
+
+      const items = TaxReportService.computeTaxReportItems(
+        activities,
+        accountMap,
+        startDate,
+        endDate,
+        'LIFO'
+      );
+
+      expect(items).toHaveLength(1);
+      // LIFO: should match the Mar 10 buy (unitPrice 320)
+      expect(items[0].quantity).toBe(3);
+      expect(items[0].costBasis).toBe(960); // 3 * 320
+      expect(items[0].proceeds).toBe(1050); // 3 * 350
+      expect(items[0].gainLoss).toBe(90);
+      // Mar 10 -> Jul 10 = 122 days
+      expect(items[0].holdingPeriodInDays).toBe(122);
+    });
+
+    it('should consume across lots in LIFO order', () => {
+      const activities = [
+        makeActivity({
+          date: '2024-01-10',
+          type: 'BUY',
+          symbol: 'GOOG',
+          quantity: 5,
+          unitPrice: 300,
+          fee: 0
+        }),
+        makeActivity({
+          date: '2024-03-10',
+          type: 'BUY',
+          symbol: 'GOOG',
+          quantity: 5,
+          unitPrice: 320,
+          fee: 0
+        }),
+        makeActivity({
+          date: '2024-07-10',
+          type: 'SELL',
+          symbol: 'GOOG',
+          quantity: 7,
+          unitPrice: 350,
+          fee: 0
+        })
+      ];
+
+      const items = TaxReportService.computeTaxReportItems(
+        activities,
+        accountMap,
+        startDate,
+        endDate,
+        'LIFO'
+      );
+
+      expect(items).toHaveLength(2);
+
+      // First matched lot: 5 from second buy (Mar 10, $320)
+      expect(items[0].quantity).toBe(5);
+      expect(items[0].costBasis).toBe(1600);
+      expect(items[0].acquisitionDate).toContain('2024-03-10');
+
+      // Second matched lot: 2 from first buy (Jan 10, $300)
+      expect(items[1].quantity).toBe(2);
+      expect(items[1].costBasis).toBe(600);
+      expect(items[1].acquisitionDate).toContain('2024-01-10');
+    });
+
+    it('should produce different results than FIFO for the same data', () => {
+      const activities = [
+        makeActivity({
+          date: '2022-06-01',
+          type: 'BUY',
+          symbol: 'NVDA',
+          quantity: 5,
+          unitPrice: 200,
+          fee: 0
+        }),
+        makeActivity({
+          date: '2024-06-01',
+          type: 'BUY',
+          symbol: 'NVDA',
+          quantity: 5,
+          unitPrice: 800,
+          fee: 0
+        }),
+        makeActivity({
+          date: '2024-09-01',
+          type: 'SELL',
+          symbol: 'NVDA',
+          quantity: 5,
+          unitPrice: 900,
+          fee: 0
+        })
+      ];
+
+      const fifoItems = TaxReportService.computeTaxReportItems(
+        activities,
+        accountMap,
+        startDate,
+        endDate,
+        'FIFO'
+      );
+
+      const lifoItems = TaxReportService.computeTaxReportItems(
+        activities,
+        accountMap,
+        startDate,
+        endDate,
+        'LIFO'
+      );
+
+      // FIFO matches the 2022 buy -> long-term, gain = (900-200)*5 = 3500
+      expect(fifoItems).toHaveLength(1);
+      expect(fifoItems[0].isLongTerm).toBe(true);
+      expect(fifoItems[0].gainLoss).toBe(3500);
+
+      // LIFO matches the 2024 buy -> short-term, gain = (900-800)*5 = 500
+      expect(lifoItems).toHaveLength(1);
+      expect(lifoItems[0].isLongTerm).toBe(false);
+      expect(lifoItems[0].gainLoss).toBe(500);
+    });
+  });
+
+  describe('computeUnrealizedLots', () => {
+    const accountMap = new Map([['acc-1', 'Main Brokerage']]);
+
+    function makeActivity(overrides: {
+      accountId?: string;
+      currency?: string;
+      date: string;
+      fee?: number;
+      quantity: number;
+      symbol: string;
+      type: string;
+      unitPrice: number;
+    }) {
+      return {
+        accountId: overrides.accountId ?? 'acc-1',
+        currency: overrides.currency ?? undefined,
+        date: new Date(overrides.date),
+        fee: overrides.fee ?? 0,
+        quantity: overrides.quantity,
+        SymbolProfile: {
+          currency: overrides.currency ?? 'USD',
+          symbol: overrides.symbol
+        },
+        type: overrides.type,
+        unitPrice: overrides.unitPrice
+      };
+    }
+
+    it('should return remaining lots after partial sell (FIFO)', () => {
+      const activities = [
+        makeActivity({
+          date: '2024-01-10',
+          type: 'BUY',
+          symbol: 'AAPL',
+          quantity: 10,
+          unitPrice: 150,
+          fee: 0
+        }),
+        makeActivity({
+          date: '2024-03-10',
+          type: 'BUY',
+          symbol: 'AAPL',
+          quantity: 5,
+          unitPrice: 170,
+          fee: 0
+        }),
+        makeActivity({
+          date: '2024-06-10',
+          type: 'SELL',
+          symbol: 'AAPL',
+          quantity: 8,
+          unitPrice: 200,
+          fee: 0
+        })
+      ];
+
+      const lots = TaxReportService.computeUnrealizedLots(
+        activities,
+        accountMap,
+        'FIFO'
+      );
+
+      // FIFO: sold 8 from first lot (10), leaving 2 from first + 5 from second
+      expect(lots).toHaveLength(2);
+      expect(lots[0].quantity).toBe(2);
+      expect(lots[0].unitPrice).toBe(150);
+      expect(lots[1].quantity).toBe(5);
+      expect(lots[1].unitPrice).toBe(170);
+    });
+
+    it('should return remaining lots after partial sell (LIFO)', () => {
+      const activities = [
+        makeActivity({
+          date: '2024-01-10',
+          type: 'BUY',
+          symbol: 'AAPL',
+          quantity: 10,
+          unitPrice: 150,
+          fee: 0
+        }),
+        makeActivity({
+          date: '2024-03-10',
+          type: 'BUY',
+          symbol: 'AAPL',
+          quantity: 5,
+          unitPrice: 170,
+          fee: 0
+        }),
+        makeActivity({
+          date: '2024-06-10',
+          type: 'SELL',
+          symbol: 'AAPL',
+          quantity: 8,
+          unitPrice: 200,
+          fee: 0
+        })
+      ];
+
+      const lots = TaxReportService.computeUnrealizedLots(
+        activities,
+        accountMap,
+        'LIFO'
+      );
+
+      // LIFO: sold 5 from second lot + 3 from first, leaving 7 from first
+      expect(lots).toHaveLength(1);
+      expect(lots[0].quantity).toBe(7);
+      expect(lots[0].unitPrice).toBe(150);
+    });
+
+    it('should return empty when all lots are sold', () => {
+      const activities = [
+        makeActivity({
+          date: '2024-01-10',
+          type: 'BUY',
+          symbol: 'AAPL',
+          quantity: 10,
+          unitPrice: 150,
+          fee: 0
+        }),
+        makeActivity({
+          date: '2024-06-10',
+          type: 'SELL',
+          symbol: 'AAPL',
+          quantity: 10,
+          unitPrice: 200,
+          fee: 0
+        })
+      ];
+
+      const lots = TaxReportService.computeUnrealizedLots(
+        activities,
+        accountMap,
+        'FIFO'
+      );
+
+      expect(lots).toHaveLength(0);
+    });
+  });
+
+  describe('simulateSell', () => {
+    it('should project gain/loss for a simulated FIFO sell', () => {
+      const buyLots = [
+        {
+          date: new Date('2023-01-15'),
+          quantity: 10,
+          unitPrice: 150,
+          fee: 0,
+          currency: 'USD',
+          accountName: 'Main',
+          symbol: 'AAPL'
+        },
+        {
+          date: new Date('2024-06-01'),
+          quantity: 5,
+          unitPrice: 200,
+          fee: 0,
+          currency: 'USD',
+          accountName: 'Main',
+          symbol: 'AAPL'
+        }
+      ];
+
+      const now = new Date('2024-12-01');
+      const result = TaxReportService.simulateSell({
+        buyLots,
+        costBasisMethod: 'FIFO',
+        now,
+        quantityToSell: 12,
+        sellPrice: 250
+      });
+
+      expect(result).toHaveLength(2);
+
+      // First lot: 10 shares at $150 cost
+      expect(result[0].quantity).toBe(10);
+      expect(result[0].costBasis).toBe(1500);
+      expect(result[0].proceeds).toBe(2500);
+      expect(result[0].gainLoss).toBe(1000);
+      expect(result[0].isLongTerm).toBe(true);
+
+      // Second lot: 2 shares at $200 cost
+      expect(result[1].quantity).toBe(2);
+      expect(result[1].costBasis).toBe(400);
+      expect(result[1].proceeds).toBe(500);
+      expect(result[1].gainLoss).toBe(100);
+      expect(result[1].isLongTerm).toBe(false);
+    });
+
+    it('should project gain/loss for a simulated LIFO sell', () => {
+      const buyLots = [
+        {
+          date: new Date('2023-01-15'),
+          quantity: 10,
+          unitPrice: 150,
+          fee: 0,
+          currency: 'USD',
+          accountName: 'Main',
+          symbol: 'AAPL'
+        },
+        {
+          date: new Date('2024-06-01'),
+          quantity: 5,
+          unitPrice: 200,
+          fee: 0,
+          currency: 'USD',
+          accountName: 'Main',
+          symbol: 'AAPL'
+        }
+      ];
+
+      const now = new Date('2024-12-01');
+      const result = TaxReportService.simulateSell({
+        buyLots,
+        costBasisMethod: 'LIFO',
+        now,
+        quantityToSell: 7,
+        sellPrice: 250
+      });
+
+      expect(result).toHaveLength(2);
+
+      // LIFO: second lot first (5 shares at $200)
+      expect(result[0].quantity).toBe(5);
+      expect(result[0].costBasis).toBe(1000);
+      expect(result[0].proceeds).toBe(1250);
+      expect(result[0].gainLoss).toBe(250);
+      expect(result[0].isLongTerm).toBe(false);
+
+      // Then 2 from first lot ($150)
+      expect(result[1].quantity).toBe(2);
+      expect(result[1].costBasis).toBe(300);
+      expect(result[1].proceeds).toBe(500);
+      expect(result[1].gainLoss).toBe(200);
+      expect(result[1].isLongTerm).toBe(true);
+    });
+
+    it('should not mutate the original lots array', () => {
+      const buyLots = [
+        {
+          date: new Date('2024-01-15'),
+          quantity: 10,
+          unitPrice: 150,
+          fee: 0,
+          currency: 'USD',
+          accountName: 'Main',
+          symbol: 'AAPL'
+        }
+      ];
+
+      TaxReportService.simulateSell({
+        buyLots,
+        costBasisMethod: 'FIFO',
+        now: new Date('2024-12-01'),
+        quantityToSell: 5,
+        sellPrice: 200
+      });
+
+      // Original should be untouched
+      expect(buyLots[0].quantity).toBe(10);
+    });
+  });
 });

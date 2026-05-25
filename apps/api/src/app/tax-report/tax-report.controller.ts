@@ -1,10 +1,14 @@
 import { HasPermissionGuard } from '@ghostfolio/api/guards/has-permission.guard';
 import { TransformDataSourceInRequestInterceptor } from '@ghostfolio/api/interceptors/transform-data-source-in-request/transform-data-source-in-request.interceptor';
 import { ApiService } from '@ghostfolio/api/services/api/api.service';
-import { TaxReportResponse } from '@ghostfolio/common/interfaces';
+import {
+  CostBasisMethod,
+  TaxReportResponse
+} from '@ghostfolio/common/interfaces';
 import type { RequestWithUser } from '@ghostfolio/common/types';
 
 import {
+  BadRequestException,
   Controller,
   Get,
   Inject,
@@ -16,6 +20,24 @@ import { REQUEST } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
 
 import { TaxReportService } from './tax-report.service';
+
+const VALID_METHODS: CostBasisMethod[] = ['FIFO', 'LIFO'];
+
+function parseCostBasisMethod(raw?: string): CostBasisMethod {
+  if (!raw) {
+    return 'FIFO';
+  }
+
+  const upper = raw.toUpperCase() as CostBasisMethod;
+
+  if (!VALID_METHODS.includes(upper)) {
+    throw new BadRequestException(
+      `Invalid costBasisMethod "${raw}". Must be one of: ${VALID_METHODS.join(', ')}`
+    );
+  }
+
+  return upper;
+}
 
 @Controller('tax-report')
 export class TaxReportController {
@@ -30,6 +52,7 @@ export class TaxReportController {
   @UseInterceptors(TransformDataSourceInRequestInterceptor)
   public async getTaxReport(
     @Query('taxYear') taxYearParam: string,
+    @Query('costBasisMethod') costBasisMethodParam?: string,
     @Query('accounts') filterByAccounts?: string,
     @Query('tags') filterByTags?: string
   ): Promise<TaxReportResponse> {
@@ -37,12 +60,15 @@ export class TaxReportController {
       ? parseInt(taxYearParam, 10)
       : new Date().getFullYear();
 
+    const costBasisMethod = parseCostBasisMethod(costBasisMethodParam);
+
     const filters = this.apiService.buildFiltersFromQueryParams({
       filterByAccounts,
       filterByTags
     });
 
     return this.taxReportService.getTaxReport({
+      costBasisMethod,
       filters,
       taxYear,
       userId: this.request.user.id,
