@@ -16,6 +16,7 @@ import {
   analyticsOutline,
   calculatorOutline,
   documentTextOutline,
+  gitCompareOutline,
   pieChartOutline,
   scanOutline,
   swapVerticalOutline
@@ -63,6 +64,12 @@ export class PortfolioPageComponent implements OnInit {
                 internalRoutes.portfolio.subRoutes.allocations.routerLink
             },
             {
+              iconName: 'git-compare-outline',
+              label: internalRoutes.portfolio.subRoutes.comparison.title,
+              routerLink:
+                internalRoutes.portfolio.subRoutes.comparison.routerLink
+            },
+            {
               iconName: 'calculator-outline',
               label: internalRoutes.portfolio.subRoutes.fire.title,
               routerLink: internalRoutes.portfolio.subRoutes.fire.routerLink
@@ -90,6 +97,7 @@ export class PortfolioPageComponent implements OnInit {
       analyticsOutline,
       calculatorOutline,
       documentTextOutline,
+      gitCompareOutline,
       pieChartOutline,
       scanOutline,
       swapVerticalOutline
