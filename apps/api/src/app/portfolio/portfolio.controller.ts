@@ -20,6 +20,7 @@ import {
 import { SubscriptionType } from '@ghostfolio/common/enums';
 import {
   PortfolioAllocationResponse,
+  PortfolioComparisonResponse,
   PortfolioDetails,
   PortfolioDividendsResponse,
   PortfolioHoldingResponse,
@@ -92,6 +93,32 @@ export class PortfolioController {
     return this.portfolioService.getAllocation({
       filters,
       impersonationId,
+      userId: this.request.user.id
+    });
+  }
+
+  @Get('comparison')
+  @UseGuards(AuthGuard('jwt'), HasPermissionGuard)
+  @UseInterceptors(PerformanceLoggingInterceptor)
+  @UseInterceptors(TransformDataSourceInResponseInterceptor)
+  public async getComparison(
+    @Headers(HEADER_KEY_IMPERSONATION.toLowerCase()) impersonationId: string,
+    @Query('accounts') accountIds: string,
+    @Query('range') dateRange: DateRange = 'max'
+  ): Promise<PortfolioComparisonResponse> {
+    const ids = accountIds?.split(',').filter(Boolean) ?? [];
+
+    if (ids.length < 2) {
+      throw new HttpException(
+        getReasonPhrase(StatusCodes.BAD_REQUEST),
+        StatusCodes.BAD_REQUEST
+      );
+    }
+
+    return this.portfolioService.getComparison({
+      dateRange,
+      impersonationId,
+      accountIds: ids,
       userId: this.request.user.id
     });
   }

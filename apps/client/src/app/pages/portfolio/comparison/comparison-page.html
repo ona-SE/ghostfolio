@@ -1,0 +1,208 @@
+<div class="container">
+  <div class="row mb-4">
+    <div class="col">
+      <h3 class="d-flex align-items-center" i18n>Portfolio Comparison</h3>
+      <p i18n>Compare performance of two or more accounts side by side.</p>
+    </div>
+  </div>
+
+  <div class="row mb-4">
+    <div class="col-md-8">
+      <mat-form-field appearance="outline" class="w-100">
+        <mat-label i18n>Select Accounts</mat-label>
+        <mat-select multiple [(ngModel)]="selectedAccountIds">
+          @for (account of accounts; track account.id) {
+            <mat-option [value]="account.id">
+              {{ account.name }}
+            </mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+    <div class="col-md-4 d-flex align-items-center">
+      <button
+        color="primary"
+        i18n
+        mat-flat-button
+        [disabled]="selectedAccountIds.length < 2 || isLoading"
+        (click)="onCompare()"
+      >
+        Compare
+      </button>
+    </div>
+  </div>
+
+  @if (isLoading) {
+    <div class="d-flex justify-content-center my-5">
+      <mat-spinner diameter="40"></mat-spinner>
+    </div>
+  }
+
+  @if (comparisonData) {
+    <!-- Metrics comparison table -->
+    <div class="row mb-4">
+      <div class="col">
+        <mat-card appearance="outlined">
+          <mat-card-content>
+            <h4 i18n>Key Metrics</h4>
+            <div class="table-responsive">
+              <table class="w-100">
+                <thead>
+                  <tr>
+                    <th i18n>Metric</th>
+                    @for (
+                      account of comparisonData.accounts;
+                      track account.accountId
+                    ) {
+                      <th class="text-right">{{ account.accountName }}</th>
+                    }
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td i18n>Total Investment</td>
+                    @for (
+                      account of comparisonData.accounts;
+                      track account.accountId
+                    ) {
+                      <td class="text-right">
+                        <gf-value
+                          [isCurrency]="true"
+                          [locale]="user?.settings?.locale"
+                          [unit]="user?.settings?.baseCurrency"
+                          [value]="account.metrics.totalInvestment"
+                        ></gf-value>
+                      </td>
+                    }
+                  </tr>
+                  <tr>
+                    <td i18n>Current Value</td>
+                    @for (
+                      account of comparisonData.accounts;
+                      track account.accountId
+                    ) {
+                      <td class="text-right">
+                        <gf-value
+                          [isCurrency]="true"
+                          [locale]="user?.settings?.locale"
+                          [unit]="user?.settings?.baseCurrency"
+                          [value]="account.metrics.currentValue"
+                        ></gf-value>
+                      </td>
+                    }
+                  </tr>
+                  <tr>
+                    <td i18n>Net Performance</td>
+                    @for (
+                      account of comparisonData.accounts;
+                      track account.accountId
+                    ) {
+                      <td class="text-right">
+                        <gf-value
+                          [colorizeSign]="true"
+                          [isCurrency]="true"
+                          [locale]="user?.settings?.locale"
+                          [unit]="user?.settings?.baseCurrency"
+                          [value]="account.metrics.netPerformance"
+                        ></gf-value>
+                      </td>
+                    }
+                  </tr>
+                  <tr>
+                    <td i18n>Return</td>
+                    @for (
+                      account of comparisonData.accounts;
+                      track account.accountId
+                    ) {
+                      <td class="text-right">
+                        <gf-value
+                          [colorizeSign]="true"
+                          [isPercent]="true"
+                          [locale]="user?.settings?.locale"
+                          [value]="account.metrics.netPerformancePercentage"
+                        ></gf-value>
+                      </td>
+                    }
+                  </tr>
+                  <tr>
+                    <td i18n>Annualized Return</td>
+                    @for (
+                      account of comparisonData.accounts;
+                      track account.accountId
+                    ) {
+                      <td class="text-right">
+                        <gf-value
+                          [colorizeSign]="true"
+                          [isPercent]="true"
+                          [locale]="user?.settings?.locale"
+                          [value]="account.metrics.annualizedReturn"
+                        ></gf-value>
+                      </td>
+                    }
+                  </tr>
+                  <tr>
+                    <td i18n>Volatility</td>
+                    @for (
+                      account of comparisonData.accounts;
+                      track account.accountId
+                    ) {
+                      <td class="text-right">
+                        <gf-value
+                          [isPercent]="true"
+                          [locale]="user?.settings?.locale"
+                          [value]="account.metrics.volatility"
+                        ></gf-value>
+                      </td>
+                    }
+                  </tr>
+                  <tr>
+                    <td i18n>Sharpe Ratio</td>
+                    @for (
+                      account of comparisonData.accounts;
+                      track account.accountId
+                    ) {
+                      <td class="text-right">
+                        <gf-value
+                          [locale]="user?.settings?.locale"
+                          [precision]="2"
+                          [value]="account.metrics.sharpeRatio"
+                        ></gf-value>
+                      </td>
+                    }
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      </div>
+    </div>
+
+    <!-- Holding overlap -->
+    @if (holdingOverlapSymbols.length > 0) {
+      <div class="row mb-4">
+        <div class="col">
+          <mat-card appearance="outlined">
+            <mat-card-content>
+              <h4 i18n>Holding Overlap</h4>
+              <p i18n>
+                The following symbols are held in multiple selected accounts:
+              </p>
+              <div class="d-flex flex-wrap gap-2">
+                @for (symbol of holdingOverlapSymbols; track symbol) {
+                  <span class="badge bg-secondary">
+                    {{ symbol }}
+                    <span class="text-muted ms-1">
+                      ({{ comparisonData.holdingOverlap[symbol].length }}
+                      <ng-container i18n>accounts</ng-container>)
+                    </span>
+                  </span>
+                }
+              </div>
+            </mat-card-content>
+          </mat-card>
+        </div>
+      </div>
+    }
+  }
+</div>

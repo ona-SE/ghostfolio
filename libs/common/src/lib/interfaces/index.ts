@@ -73,6 +73,10 @@ import type { MarketDataOfMarketsResponse } from './responses/market-data-of-mar
 import type { OAuthResponse } from './responses/oauth-response.interface';
 import type { PlatformsResponse } from './responses/platforms-response.interface';
 import type { PortfolioAllocationResponse } from './responses/portfolio-allocation-response.interface';
+import type {
+  PortfolioComparisonAccount,
+  PortfolioComparisonResponse
+} from './responses/portfolio-comparison-response.interface';
 import type { PortfolioDividendsResponse } from './responses/portfolio-dividends-response.interface';
 import type { PortfolioHoldingResponse } from './responses/portfolio-holding-response.interface';
 import type { PortfolioHoldingsResponse } from './responses/portfolio-holdings-response.interface';
@@ -179,6 +183,8 @@ export {
   PlatformsResponse,
   PortfolioChart,
   PortfolioAllocationResponse,
+  PortfolioComparisonAccount,
+  PortfolioComparisonResponse,
   PortfolioDetails,
   PortfolioDividendsResponse,
   PortfolioHoldingResponse,

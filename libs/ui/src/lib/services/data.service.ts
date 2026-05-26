@@ -46,6 +46,7 @@ import {
   MarketDataOfMarketsResponse,
   OAuthResponse,
   PlatformsResponse,
+  PortfolioComparisonResponse,
   PortfolioDetails,
   PortfolioDividendsResponse,
   PortfolioHoldingResponse,
@@ -595,6 +596,23 @@ export class DataService {
 
   public fetchPlatforms() {
     return this.http.get<PlatformsResponse>('/api/v1/platforms');
+  }
+
+  public fetchPortfolioComparison({
+    accountIds,
+    range
+  }: {
+    accountIds: string[];
+    range: DateRange;
+  }): Observable<PortfolioComparisonResponse> {
+    let params = new HttpParams();
+    params = params.append('accounts', accountIds.join(','));
+    params = params.append('range', range);
+
+    return this.http.get<PortfolioComparisonResponse>(
+      '/api/v1/portfolio/comparison',
+      { params }
+    );
   }
 
   public fetchPortfolioDetails({

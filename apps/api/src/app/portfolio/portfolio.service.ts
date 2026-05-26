@@ -28,7 +28,11 @@ import { ImpersonationService } from '@ghostfolio/api/services/impersonation/imp
 import { SymbolProfileService } from '@ghostfolio/api/services/symbol-profile/symbol-profile.service';
 import {
   getAnnualizedPerformancePercent,
-  getIntervalFromDateRange
+  getDailyReturns,
+  getHoldingOverlap,
+  getIntervalFromDateRange,
+  getSharpeRatio,
+  getVolatility
 } from '@ghostfolio/common/calculation-helper';
 import {
   DEFAULT_CURRENCY,
@@ -45,6 +49,8 @@ import {
   HistoricalDataItem,
   InvestmentItem,
   PortfolioAllocationResponse,
+  PortfolioComparisonAccount,
+  PortfolioComparisonResponse,
   PortfolioDetails,
   PortfolioHoldingResponse,
   PortfolioInvestmentsResponse,
@@ -1239,6 +1245,152 @@ export class PortfolioService {
         netPerformancePercentageWithCurrencyEffect:
           netPerformanceInPercentageWithCurrencyEffect
       }
+    };
+  }
+
+  public async getComparison({
+    accountIds,
+    dateRange = 'max',
+    impersonationId,
+    userId
+  }: {
+    accountIds: string[];
+    dateRange?: DateRange;
+    impersonationId: string;
+    userId: string;
+  }): Promise<PortfolioComparisonResponse> {
+    userId = await this.getUserId(impersonationId, userId);
+    const user = await this.userService.user({ id: userId });
+    const userCurrency = this.getUserCurrency(user);
+
+    const accountResults: PortfolioComparisonAccount[] = [];
+
+    // Compute performance for each account in parallel
+    const accountPerformances = await Promise.all(
+      accountIds.map(async (accountId) => {
+        const filters: Filter[] = [{ id: accountId, type: 'ACCOUNT' }];
+
+        const [accountBalanceItems, { activities }] = await Promise.all([
+          this.accountBalanceService.getAccountBalanceItems({
+            filters,
+            userId,
+            userCurrency
+          }),
+          this.activitiesService.getActivitiesForPortfolioCalculator({
+            filters,
+            userCurrency,
+            userId
+          })
+        ]);
+
+        // Look up the account name
+        const account = await this.accountService.account({
+          id_userId: { id: accountId, userId }
+        });
+
+        const accountName = account?.name ?? accountId;
+
+        if (accountBalanceItems.length === 0 && activities.length === 0) {
+          return {
+            accountId,
+            accountName,
+            chart: [],
+            metrics: {
+              annualizedReturn: 0,
+              currentValue: 0,
+              netPerformance: 0,
+              netPerformancePercentage: 0,
+              sharpeRatio: 0,
+              totalInvestment: 0,
+              volatility: 0
+            },
+            symbols: []
+          } as PortfolioComparisonAccount;
+        }
+
+        const portfolioCalculator = this.calculatorFactory.createCalculator({
+          accountBalanceItems,
+          activities,
+          filters,
+          userId,
+          calculationType: this.getUserPerformanceCalculationType(user),
+          currency: userCurrency
+        });
+
+        await portfolioCalculator.getSnapshot();
+
+        const { endDate, startDate } = getIntervalFromDateRange({ dateRange });
+
+        const { chart } = await portfolioCalculator.getPerformance({
+          end: endDate,
+          start: startDate
+        });
+
+        const lastItem = chart?.at(-1);
+        const netPerformance = lastItem?.netPerformance ?? 0;
+        const netPerformancePercentage =
+          lastItem?.netPerformanceInPercentage ?? 0;
+        const totalInvestment = lastItem?.totalInvestment ?? 0;
+        const currentValue = lastItem?.valueWithCurrencyEffect ?? 0;
+
+        // Compute risk metrics from the chart data
+        const dailyReturns = getDailyReturns(chart ?? []);
+        const volatility = getVolatility(dailyReturns);
+
+        const daysInMarket = chart?.length ?? 0;
+        const annualizedReturn = getAnnualizedPerformancePercent({
+          daysInMarket,
+          netPerformancePercentage: new Big(netPerformancePercentage)
+        }).toNumber();
+
+        const sharpeRatio = getSharpeRatio({
+          annualizedReturn,
+          volatility
+        });
+
+        // Extract unique symbols held in this account
+        const symbols = [
+          ...new Set(
+            activities
+              .filter((a) => a.SymbolProfile?.symbol)
+              .map((a) => a.SymbolProfile.symbol)
+          )
+        ];
+
+        return {
+          accountId,
+          accountName,
+          chart: chart ?? [],
+          metrics: {
+            annualizedReturn,
+            currentValue,
+            netPerformance,
+            netPerformancePercentage,
+            sharpeRatio,
+            totalInvestment,
+            volatility
+          },
+          symbols
+        } as PortfolioComparisonAccount;
+      })
+    );
+
+    for (const result of accountPerformances) {
+      accountResults.push(result);
+    }
+
+    // Compute holding overlap across accounts
+    const holdingOverlap = getHoldingOverlap(
+      accountResults.map(({ accountId, symbols }) => ({
+        accountId,
+        symbols
+      }))
+    );
+
+    return {
+      accounts: accountResults,
+      hasErrors: false,
+      holdingOverlap
     };
   }
 
