@@ -30,6 +30,11 @@ export const routes: Routes = [
           import('./comparison/comparison-page.routes').then((m) => m.routes)
       },
       {
+        path: internalRoutes.portfolio.subRoutes.dca.path,
+        loadChildren: () =>
+          import('./dca/dca-page.routes').then((m) => m.routes)
+      },
+      {
         path: internalRoutes.portfolio.subRoutes.fire.path,
         loadChildren: () =>
           import('./fire/fire-page.routes').then((m) => m.routes)

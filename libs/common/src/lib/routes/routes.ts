@@ -142,6 +142,11 @@ export const internalRoutes = {
         routerLink: ['/portfolio', 'comparison'],
         title: $localize`Comparison`
       },
+      dca: {
+        path: 'dca',
+        routerLink: ['/portfolio', 'dca'],
+        title: $localize`DCA Plans`
+      },
       fire: {
         path: 'fire',
         routerLink: ['/portfolio', 'fire'],

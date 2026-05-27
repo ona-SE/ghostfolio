@@ -8,6 +8,7 @@ import { CreateAssetProfileWithMarketDataDto } from './create-asset-profile-with
 import { CreateAssetProfileDto } from './create-asset-profile.dto';
 import { CreateOrderDto } from './create-order.dto';
 import { CreatePlatformDto } from './create-platform.dto';
+import { CreateRecurringInvestmentPlanDto } from './create-recurring-investment-plan.dto';
 import { CreateTagDto } from './create-tag.dto';
 import { CreateWatchlistItemDto } from './create-watchlist-item.dto';
 import { DeleteOwnUserDto } from './delete-own-user.dto';
@@ -21,6 +22,7 @@ import { UpdateOrderDto } from './update-order.dto';
 import { UpdateOwnAccessTokenDto } from './update-own-access-token.dto';
 import { UpdatePlatformDto } from './update-platform.dto';
 import { UpdatePropertyDto } from './update-property.dto';
+import { UpdateRecurringInvestmentPlanDto } from './update-recurring-investment-plan.dto';
 import { UpdateTagDto } from './update-tag.dto';
 import { UpdateUserSettingDto } from './update-user-setting.dto';
 
@@ -35,6 +37,7 @@ export {
   CreateAssetProfileWithMarketDataDto,
   CreateOrderDto,
   CreatePlatformDto,
+  CreateRecurringInvestmentPlanDto,
   CreateTagDto,
   CreateWatchlistItemDto,
   DeleteOwnUserDto,
@@ -47,6 +50,7 @@ export {
   UpdateOrderDto,
   UpdateOwnAccessTokenDto,
   UpdatePlatformDto,
+  UpdateRecurringInvestmentPlanDto,
   UpdatePropertyDto,
   UpdateTagDto,
   UpdateUserSettingDto
