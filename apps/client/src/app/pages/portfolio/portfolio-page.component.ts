@@ -18,6 +18,7 @@ import {
   documentTextOutline,
   gitCompareOutline,
   pieChartOutline,
+  repeatOutline,
   scanOutline,
   swapVerticalOutline
 } from 'ionicons/icons';
@@ -70,6 +71,11 @@ export class PortfolioPageComponent implements OnInit {
                 internalRoutes.portfolio.subRoutes.comparison.routerLink
             },
             {
+              iconName: 'repeat-outline',
+              label: internalRoutes.portfolio.subRoutes.dca.title,
+              routerLink: internalRoutes.portfolio.subRoutes.dca.routerLink
+            },
+            {
               iconName: 'calculator-outline',
               label: internalRoutes.portfolio.subRoutes.fire.title,
               routerLink: internalRoutes.portfolio.subRoutes.fire.routerLink
@@ -99,6 +105,7 @@ export class PortfolioPageComponent implements OnInit {
       documentTextOutline,
       gitCompareOutline,
       pieChartOutline,
+      repeatOutline,
       scanOutline,
       swapVerticalOutline
     });

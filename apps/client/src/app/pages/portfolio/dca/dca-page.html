@@ -1,0 +1,78 @@
+<div class="container">
+  <div class="row">
+    <div class="col">
+      @if (plans.length === 0) {
+        <p class="text-center" i18n>
+          No recurring investment plans found. Create one to start tracking your
+          DCA strategy.
+        </p>
+      } @else {
+        <table class="w-100" mat-table [dataSource]="plans">
+          <ng-container matColumnDef="symbolName">
+            <th *matHeaderCellDef i18n mat-header-cell>Asset</th>
+            <td *matCellDef="let plan" mat-cell>
+              {{ plan.symbolName || '–' }}
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="amount">
+            <th *matHeaderCellDef i18n mat-header-cell>Amount</th>
+            <td *matCellDef="let plan" mat-cell>
+              {{ plan.amount | number: '1.2-2' }} {{ plan.currency }}
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="frequency">
+            <th *matHeaderCellDef i18n mat-header-cell>Frequency</th>
+            <td *matCellDef="let plan" mat-cell>
+              {{ plan.frequency }}
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="startDate">
+            <th *matHeaderCellDef i18n mat-header-cell>Start Date</th>
+            <td *matCellDef="let plan" mat-cell>
+              {{ plan.startDate | date: 'mediumDate' }}
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="isActive">
+            <th *matHeaderCellDef i18n mat-header-cell>Status</th>
+            <td *matCellDef="let plan" mat-cell>
+              @if (plan.isActive) {
+                <span class="badge text-bg-success" i18n>Active</span>
+              } @else {
+                <span class="badge text-bg-secondary" i18n>Paused</span>
+              }
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="actions">
+            <th *matHeaderCellDef mat-header-cell></th>
+            <td *matCellDef="let plan" mat-cell>
+              <button
+                mat-icon-button
+                [title]="plan.isActive ? 'Pause' : 'Resume'"
+                (click)="onTogglePlan(plan)"
+              >
+                <ion-icon
+                  [name]="plan.isActive ? 'pause-outline' : 'play-outline'"
+                />
+              </button>
+              <button
+                mat-icon-button
+                title="Delete"
+                (click)="onDeletePlan(plan.id)"
+              >
+                <ion-icon name="trash-outline" />
+              </button>
+            </td>
+          </ng-container>
+
+          <tr *matHeaderRowDef="displayedColumns" mat-header-row></tr>
+          <tr *matRowDef="let row; columns: displayedColumns" mat-row></tr>
+        </table>
+      }
+    </div>
+  </div>
+</div>

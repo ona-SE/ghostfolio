@@ -4,6 +4,7 @@ import {
   CreateAccountBalanceDto,
   CreateAccountDto,
   CreateOrderDto,
+  CreateRecurringInvestmentPlanDto,
   CreateTagDto,
   CreateWatchlistItemDto,
   DeleteOwnUserDto,
@@ -14,6 +15,7 @@ import {
   UpdateOrderDto,
   UpdateOwnAccessTokenDto,
   UpdatePropertyDto,
+  UpdateRecurringInvestmentPlanDto,
   UpdateTagDto,
   UpdateUserSettingDto
 } from '@ghostfolio/common/dtos';
@@ -55,6 +57,7 @@ import {
   PortfolioPerformanceResponse,
   PortfolioReportResponse,
   PublicPortfolioResponse,
+  RecurringInvestmentPlansResponse,
   SymbolItem,
   User,
   UserItem,
@@ -330,6 +333,10 @@ export class DataService {
 
   public deleteAccountBalance(aId: string) {
     return this.http.delete<AccountBalance>(`/api/v1/account-balance/${aId}`);
+  }
+
+  public deleteRecurringInvestmentPlan(aId: string) {
+    return this.http.delete<void>(`/api/v1/recurring-investment-plan/${aId}`);
   }
 
   public deleteActivities({ filters }: { filters?: Filter[] }) {
@@ -758,6 +765,12 @@ export class DataService {
     return this.http.get<PortfolioReportResponse>('/api/v1/portfolio/report');
   }
 
+  public fetchRecurringInvestmentPlans() {
+    return this.http.get<RecurringInvestmentPlansResponse>(
+      '/api/v1/recurring-investment-plan'
+    );
+  }
+
   public fetchPrompt({
     filters,
     mode
@@ -889,6 +902,10 @@ export class DataService {
     return this.http.post<MarketData>(url, marketData);
   }
 
+  public postRecurringInvestmentPlan(aPlan: CreateRecurringInvestmentPlanDto) {
+    return this.http.post<void>('/api/v1/recurring-investment-plan', aPlan);
+  }
+
   public postTag(aTag: CreateTagDto) {
     return this.http.post<Tag>(`/api/v1/tags`, aTag);
   }
@@ -907,6 +924,15 @@ export class DataService {
 
   public putAccount(aAccount: UpdateAccountDto) {
     return this.http.put<UserItem>(`/api/v1/account/${aAccount.id}`, aAccount);
+  }
+
+  public putRecurringInvestmentPlan(
+    aPlan: UpdateRecurringInvestmentPlanDto & { id: string }
+  ) {
+    return this.http.put<void>(
+      `/api/v1/recurring-investment-plan/${aPlan.id}`,
+      aPlan
+    );
   }
 
   public putActivity(aOrder: UpdateOrderDto) {

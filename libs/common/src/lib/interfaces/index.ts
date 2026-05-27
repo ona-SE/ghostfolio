@@ -39,6 +39,7 @@ import type { PortfolioPosition } from './portfolio-position.interface';
 import type { PortfolioReportRule } from './portfolio-report-rule.interface';
 import type { PortfolioSummary } from './portfolio-summary.interface';
 import type { Product } from './product';
+import type { RecurringInvestmentPlan } from './recurring-investment-plan.interface';
 import type { AccessTokenResponse } from './responses/access-token-response.interface';
 import type { AccountBalancesResponse } from './responses/account-balances-response.interface';
 import type { AccountResponse } from './responses/account-response.interface';
@@ -85,6 +86,7 @@ import type { PortfolioPerformanceResponse } from './responses/portfolio-perform
 import type { PortfolioReportResponse } from './responses/portfolio-report.interface';
 import type { PublicPortfolioResponse } from './responses/public-portfolio-response.interface';
 import type { QuotesResponse } from './responses/quotes-response.interface';
+import type { RecurringInvestmentPlansResponse } from './responses/recurring-investment-plans-response.interface';
 import type {
   TaxCsvExportItem,
   TaxCsvExportResponse
@@ -201,6 +203,8 @@ export {
   PublicKeyCredentialRequestOptionsJSON,
   PublicPortfolioResponse,
   QuotesResponse,
+  RecurringInvestmentPlan,
+  RecurringInvestmentPlansResponse,
   ResponseError,
   RuleSettings,
   ScraperConfiguration,
