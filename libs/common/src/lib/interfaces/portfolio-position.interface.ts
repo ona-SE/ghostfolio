@@ -76,6 +76,12 @@ export interface PortfolioPosition {
   netPerformanceWithCurrencyEffect: number;
   quantity: number;
 
+  /**
+   * Unrealized FX gain/loss in the user's base currency.
+   * Computed as netPerformanceWithCurrencyEffect − netPerformance.
+   */
+  unrealizedCurrencyGainInBaseCurrency?: number;
+
   /** @deprecated */
   sectors: Sector[];
 

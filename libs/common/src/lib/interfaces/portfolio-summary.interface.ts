@@ -25,4 +25,11 @@ export interface PortfolioSummary extends PortfolioPerformance {
   totalBuy: number;
   totalSell: number;
   totalValueInBaseCurrency?: number;
+
+  /**
+   * Aggregate unrealized FX gain/loss across all holdings, in base currency.
+   * Computed as netPerformanceWithCurrencyEffect − netPerformance at the
+   * portfolio level.
+   */
+  unrealizedCurrencyGainInBaseCurrency?: number;
 }
