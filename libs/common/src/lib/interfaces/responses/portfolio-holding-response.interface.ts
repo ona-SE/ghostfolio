@@ -33,5 +33,6 @@ export interface PortfolioHoldingResponse {
   quantity: number;
   SymbolProfile: EnhancedSymbolProfile;
   tags: Tag[];
+  unrealizedCurrencyGainInBaseCurrency: number;
   value: number;
 }

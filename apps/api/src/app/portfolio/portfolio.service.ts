@@ -832,6 +832,9 @@ export class PortfolioService {
           netPerformanceWithCurrencyEffectMap?.[dateRange]?.toNumber() ?? 0,
         quantity: quantity.toNumber(),
         sectors: assetProfile.sectors,
+        unrealizedCurrencyGainInBaseCurrency:
+          (netPerformanceWithCurrencyEffectMap?.[dateRange]?.toNumber() ?? 0) -
+          (netPerformance?.toNumber() ?? 0),
         url: assetProfile.url,
         valueInBaseCurrency: valueInBaseCurrency.toNumber(),
         valueInPercentage: totalValueInBaseCurrency.eq(0)
@@ -1136,6 +1139,9 @@ export class PortfolioService {
         }
       },
       quantity: quantity.toNumber(),
+      unrealizedCurrencyGainInBaseCurrency:
+        (netPerformanceWithCurrencyEffectMap?.['max']?.toNumber() ?? 0) -
+        (netPerformance?.toNumber() ?? 0),
       value: this.exchangeRateDataService.toCurrency(
         quantity.mul(marketPrice ?? 0).toNumber(),
         currency,
@@ -1186,7 +1192,8 @@ export class PortfolioService {
           netPerformancePercentageWithCurrencyEffect: 0,
           netPerformanceWithCurrencyEffect: 0,
           totalInvestment: 0,
-          totalInvestmentValueWithCurrencyEffect: 0
+          totalInvestmentValueWithCurrencyEffect: 0,
+          unrealizedCurrencyGainInBaseCurrency: 0
         }
       };
     }
@@ -1243,7 +1250,9 @@ export class PortfolioService {
         currentValueInBaseCurrency: valueWithCurrencyEffect,
         netPerformancePercentage: netPerformanceInPercentage,
         netPerformancePercentageWithCurrencyEffect:
-          netPerformanceInPercentageWithCurrencyEffect
+          netPerformanceInPercentageWithCurrencyEffect,
+        unrealizedCurrencyGainInBaseCurrency:
+          netPerformanceWithCurrencyEffect - netPerformance
       }
     };
   }
@@ -2455,7 +2464,9 @@ export class PortfolioService {
       totalInvestment: totalInvestment.toNumber(),
       totalInvestmentValueWithCurrencyEffect:
         totalInvestmentWithCurrencyEffect.toNumber(),
-      totalValueInBaseCurrency: netWorth
+      totalValueInBaseCurrency: netWorth,
+      unrealizedCurrencyGainInBaseCurrency:
+        netPerformanceWithCurrencyEffect - netPerformance
     };
   }
 

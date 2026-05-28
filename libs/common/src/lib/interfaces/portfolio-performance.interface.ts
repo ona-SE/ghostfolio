@@ -8,4 +8,5 @@ export interface PortfolioPerformance {
   netPerformanceWithCurrencyEffect: number;
   totalInvestment: number;
   totalInvestmentValueWithCurrencyEffect: number;
+  unrealizedCurrencyGainInBaseCurrency?: number;
 }
