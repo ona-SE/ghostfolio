@@ -84,6 +84,10 @@ import type { PortfolioHoldingsResponse } from './responses/portfolio-holdings-r
 import type { PortfolioInvestmentsResponse } from './responses/portfolio-investments.interface';
 import type { PortfolioPerformanceResponse } from './responses/portfolio-performance-response.interface';
 import type { PortfolioReportResponse } from './responses/portfolio-report.interface';
+import type {
+  PriceAlertItem,
+  PriceAlertsResponse
+} from './responses/price-alerts-response.interface';
 import type { PublicPortfolioResponse } from './responses/public-portfolio-response.interface';
 import type { QuotesResponse } from './responses/quotes-response.interface';
 import type { RecurringInvestmentPlansResponse } from './responses/recurring-investment-plans-response.interface';
@@ -198,6 +202,8 @@ export {
   PortfolioReportResponse,
   PortfolioReportRule,
   PortfolioSummary,
+  PriceAlertItem,
+  PriceAlertsResponse,
   Product,
   PublicKeyCredentialCreationOptionsJSON,
   PublicKeyCredentialRequestOptionsJSON,
