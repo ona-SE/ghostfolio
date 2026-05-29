@@ -199,6 +199,27 @@ model Platform {
   @@index([name])
 }
 
+model PriceAlert {
+  createdAt        DateTime       @default(now())
+  dataSource       DataSource
+  direction        AlertDirection
+  id               String         @id @default(uuid())
+  isActive         Boolean        @default(true)
+  lastTriggeredAt  DateTime?
+  symbol           String
+  symbolProfile    SymbolProfile  @relation(fields: [dataSource, symbol], references: [dataSource, symbol])
+  thresholdPrice   Float
+  updatedAt        DateTime       @updatedAt
+  user             User           @relation(fields: [userId], onDelete: Cascade, references: [id])
+  userId           String
+  webhookType      WebhookType
+  webhookUrl       String
+
+  @@index([isActive])
+  @@index([userId])
+  @@index([dataSource, symbol])
+}
+
 model Property {
   key   String @id
   value String
@@ -230,6 +251,7 @@ model SymbolProfile {
   isin                    String?
   name                    String?
   updatedAt               DateTime                 @updatedAt
+  priceAlerts             PriceAlert[]
   recurringInvestmentPlans RecurringInvestmentPlan[]
   scraperConfiguration    Json?
   sectors                 Json?
@@ -300,6 +322,7 @@ model User {
   authDevices             AuthDevice[]
   createdAt               DateTime                 @default(now())
   id                      String                   @id @default(uuid())
+  priceAlerts             PriceAlert[]
   provider                Provider                 @default(ANONYMOUS)
   recurringInvestmentPlans RecurringInvestmentPlan[]
   role                    Role                     @default(USER)
@@ -396,4 +419,15 @@ enum PlanFrequency {
 enum ViewMode {
   DEFAULT
   ZEN
+}
+
+enum AlertDirection {
+  ABOVE
+  BELOW
+}
+
+enum WebhookType {
+  DISCORD
+  GENERIC
+  SLACK
 }

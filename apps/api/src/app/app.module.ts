@@ -51,6 +51,7 @@ import { GhostfolioModule } from './endpoints/data-providers/ghostfolio/ghostfol
 import { MarketDataModule } from './endpoints/market-data/market-data.module';
 import { MetricsModule } from './endpoints/metrics/metrics.module';
 import { PlatformsModule } from './endpoints/platforms/platforms.module';
+import { PriceAlertsModule } from './endpoints/price-alerts/price-alerts.module';
 import { PublicModule } from './endpoints/public/public.module';
 import { SitemapModule } from './endpoints/sitemap/sitemap.module';
 import { TagsModule } from './endpoints/tags/tags.module';
@@ -135,6 +136,7 @@ import { UserModule } from './user/user.module';
     ...(process.env.ENABLE_FEATURE_METRICS === 'true' ? [MetricsModule] : []),
     PlatformModule,
     PlatformsModule,
+    PriceAlertsModule,
     PortfolioModule,
     PortfolioSnapshotQueueModule,
     RecurringInvestmentPlanModule,
