@@ -364,9 +364,11 @@ enum AssetSubClass {
   ETF
   LOAN
   MUTUALFUND
+  OPTION
   PRECIOUS_METAL
   PRIVATE_EQUITY
   STOCK
+  WARRANT
 }
 
 enum DataSource {

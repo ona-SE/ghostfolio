@@ -58,9 +58,11 @@ const locales = {
   ETF: $localize`ETF`,
   LOAN: $localize`Loan`,
   MUTUALFUND: $localize`Mutual Fund`,
+  OPTION: $localize`Option`,
   PRECIOUS_METAL: $localize`Precious Metal`,
   PRIVATE_EQUITY: $localize`Private Equity`,
   STOCK: $localize`Stock`,
+  WARRANT: $localize`Warrant`,
 
   // Benchmark
   ALL_TIME_HIGH: 'All time high',
