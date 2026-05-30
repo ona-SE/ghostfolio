@@ -1,0 +1,3 @@
+-- AlterEnum
+ALTER TYPE "AssetSubClass" ADD VALUE 'OPTION';
+ALTER TYPE "AssetSubClass" ADD VALUE 'WARRANT';
