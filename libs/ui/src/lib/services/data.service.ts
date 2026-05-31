@@ -55,6 +55,7 @@ import {
   PortfolioHoldingsResponse,
   PortfolioInvestmentsResponse,
   PortfolioPerformanceResponse,
+  PortfolioRebalancingResponse,
   PortfolioReportResponse,
   PublicPortfolioResponse,
   RecurringInvestmentPlansResponse,
@@ -759,6 +760,12 @@ export class DataService {
           return response;
         })
       );
+  }
+
+  public fetchPortfolioRebalancing() {
+    return this.http.get<PortfolioRebalancingResponse>(
+      '/api/v1/portfolio/rebalancing'
+    );
   }
 
   public fetchPortfolioReport() {

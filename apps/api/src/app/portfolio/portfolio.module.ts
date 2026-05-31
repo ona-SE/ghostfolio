@@ -27,6 +27,7 @@ import { PortfolioCalculatorFactory } from './calculator/portfolio-calculator.fa
 import { CurrentRateService } from './current-rate.service';
 import { PortfolioController } from './portfolio.controller';
 import { PortfolioService } from './portfolio.service';
+import { RebalancingService } from './rebalancing.service';
 import { RulesService } from './rules.service';
 
 @Module({
@@ -60,6 +61,7 @@ import { RulesService } from './rules.service';
     CurrentRateService,
     PortfolioCalculatorFactory,
     PortfolioService,
+    RebalancingService,
     RulesService
   ]
 })
