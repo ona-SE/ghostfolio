@@ -17,6 +17,7 @@ import {
   calculatorOutline,
   documentTextOutline,
   gitCompareOutline,
+  optionsOutline,
   pieChartOutline,
   repeatOutline,
   scanOutline,
@@ -81,6 +82,12 @@ export class PortfolioPageComponent implements OnInit {
               routerLink: internalRoutes.portfolio.subRoutes.fire.routerLink
             },
             {
+              iconName: 'options-outline',
+              label: internalRoutes.portfolio.subRoutes.rebalancing.title,
+              routerLink:
+                internalRoutes.portfolio.subRoutes.rebalancing.routerLink
+            },
+            {
               iconName: 'document-text-outline',
               label: internalRoutes.portfolio.subRoutes.tax.title,
               routerLink: internalRoutes.portfolio.subRoutes.tax.routerLink,
@@ -104,6 +111,7 @@ export class PortfolioPageComponent implements OnInit {
       calculatorOutline,
       documentTextOutline,
       gitCompareOutline,
+      optionsOutline,
       pieChartOutline,
       repeatOutline,
       scanOutline,

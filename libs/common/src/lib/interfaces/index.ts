@@ -83,6 +83,10 @@ import type { PortfolioHoldingResponse } from './responses/portfolio-holding-res
 import type { PortfolioHoldingsResponse } from './responses/portfolio-holdings-response.interface';
 import type { PortfolioInvestmentsResponse } from './responses/portfolio-investments.interface';
 import type { PortfolioPerformanceResponse } from './responses/portfolio-performance-response.interface';
+import type {
+  PortfolioRebalancingResponse,
+  RebalancingSuggestion
+} from './responses/portfolio-rebalancing-response.interface';
 import type { PortfolioReportResponse } from './responses/portfolio-report.interface';
 import type {
   PriceAlertItem,
@@ -199,7 +203,9 @@ export {
   PortfolioPerformance,
   PortfolioPerformanceResponse,
   PortfolioPosition,
+  PortfolioRebalancingResponse,
   PortfolioReportResponse,
+  RebalancingSuggestion,
   PortfolioReportRule,
   PortfolioSummary,
   PriceAlertItem,

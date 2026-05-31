@@ -1,0 +1,94 @@
+<div class="container">
+  <div class="row">
+    <div class="col">
+      <h1 class="d-none d-sm-block h3 mb-3" i18n>Rebalancing</h1>
+
+      @if (isLoading) {
+        <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+      }
+
+      @if (!isLoading && suggestions.length === 0) {
+        <mat-card appearance="outlined">
+          <mat-card-content>
+            <p class="mb-0" i18n>
+              No target allocations configured. Set your target allocation
+              percentages per asset class to see rebalancing suggestions.
+            </p>
+          </mat-card-content>
+        </mat-card>
+      }
+
+      @if (!isLoading && suggestions.length > 0) {
+        <mat-card appearance="outlined" class="mb-3">
+          <mat-card-content>
+            <table mat-table [dataSource]="suggestions" class="w-100">
+              <ng-container matColumnDef="assetClass">
+                <th mat-header-cell *matHeaderCellDef i18n>Asset Class</th>
+                <td mat-cell *matCellDef="let row">{{ row.assetClass }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="currentPercentage">
+                <th mat-header-cell *matHeaderCellDef class="text-right" i18n>
+                  Current
+                </th>
+                <td mat-cell *matCellDef="let row" class="text-right">
+                  {{ row.currentPercentage | percent: '1.1-1' }}
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="targetPercentage">
+                <th mat-header-cell *matHeaderCellDef class="text-right" i18n>
+                  Target
+                </th>
+                <td mat-cell *matCellDef="let row" class="text-right">
+                  {{ row.targetPercentage | percent: '1.1-1' }}
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="deltaPercentage">
+                <th mat-header-cell *matHeaderCellDef class="text-right" i18n>
+                  Drift
+                </th>
+                <td
+                  mat-cell
+                  *matCellDef="let row"
+                  class="text-right"
+                  [ngClass]="{
+                    'text-danger': row.deltaPercentage < -0.001,
+                    'text-success': row.deltaPercentage > 0.001
+                  }"
+                >
+                  {{ row.deltaPercentage | percent: '1.1-1' }}
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="deltaValue">
+                <th mat-header-cell *matHeaderCellDef class="text-right" i18n>
+                  Trade Amount
+                </th>
+                <td
+                  mat-cell
+                  *matCellDef="let row"
+                  class="text-right"
+                  [ngClass]="{
+                    'text-danger': row.deltaValueInBaseCurrency < -0.01,
+                    'text-success': row.deltaValueInBaseCurrency > 0.01
+                  }"
+                >
+                  <gf-value
+                    [isCurrency]="true"
+                    [locale]="user?.settings?.locale"
+                    [value]="row.deltaValueInBaseCurrency"
+                  ></gf-value>
+                </td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+            </table>
+          </mat-card-content>
+        </mat-card>
+      }
+    </div>
+  </div>
+</div>

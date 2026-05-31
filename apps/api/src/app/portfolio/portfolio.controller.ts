@@ -27,6 +27,7 @@ import {
   PortfolioHoldingsResponse,
   PortfolioInvestmentsResponse,
   PortfolioPerformanceResponse,
+  PortfolioRebalancingResponse,
   PortfolioReportResponse
 } from '@ghostfolio/common/interfaces';
 import {
@@ -43,11 +44,13 @@ import type {
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   HttpException,
   Inject,
   Param,
+  Post,
   Put,
   Query,
   UseGuards,
@@ -61,6 +64,8 @@ import { Big } from 'big.js';
 import { StatusCodes, getReasonPhrase } from 'http-status-codes';
 
 import { PortfolioService } from './portfolio.service';
+import { RebalancingService } from './rebalancing.service';
+import { SetTargetAllocationsDto } from './set-target-allocations.dto';
 import { UpdateHoldingTagsDto } from './update-holding-tags.dto';
 
 @Controller('portfolio')
@@ -71,6 +76,7 @@ export class PortfolioController {
     private readonly configurationService: ConfigurationService,
     private readonly impersonationService: ImpersonationService,
     private readonly portfolioService: PortfolioService,
+    private readonly rebalancingService: RebalancingService,
     @Inject(REQUEST) private readonly request: RequestWithUser
   ) {}
 
@@ -690,6 +696,41 @@ export class PortfolioController {
     }
 
     return report;
+  }
+
+  @Get('rebalancing')
+  @UseGuards(AuthGuard('jwt'), HasPermissionGuard)
+  public async getRebalancing(
+    @Headers(HEADER_KEY_IMPERSONATION.toLowerCase()) impersonationId: string
+  ): Promise<PortfolioRebalancingResponse> {
+    return this.rebalancingService.getRebalancingSuggestions({
+      impersonationId,
+      userId: this.request.user.id
+    });
+  }
+
+  @Get('rebalancing/targets')
+  @UseGuards(AuthGuard('jwt'), HasPermissionGuard)
+  public async getTargetAllocations() {
+    return this.rebalancingService.getTargetAllocations({
+      userId: this.request.user.id
+    });
+  }
+
+  @HasPermission(permissions.updateUserSettings)
+  @Post('rebalancing/targets')
+  @UseGuards(AuthGuard('jwt'), HasPermissionGuard)
+  public async setTargetAllocations(
+    @Body() data: SetTargetAllocationsDto
+  ): Promise<void> {
+    try {
+      await this.rebalancingService.setTargetAllocations({
+        allocations: data.allocations,
+        userId: this.request.user.id
+      });
+    } catch (error) {
+      throw new HttpException(error.message, StatusCodes.BAD_REQUEST);
+    }
   }
 
   @HasPermission(permissions.updateActivity)

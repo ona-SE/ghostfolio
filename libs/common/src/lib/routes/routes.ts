@@ -152,6 +152,11 @@ export const internalRoutes = {
         routerLink: ['/portfolio', 'fire'],
         title: 'FIRE'
       },
+      rebalancing: {
+        path: 'rebalancing',
+        routerLink: ['/portfolio', 'rebalancing'],
+        title: $localize`Rebalancing`
+      },
       tax: {
         path: 'tax',
         routerLink: ['/portfolio', 'tax'],
