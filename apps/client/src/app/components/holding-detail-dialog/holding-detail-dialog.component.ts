@@ -156,6 +156,8 @@ export class GfHoldingDetailDialogComponent implements OnInit {
   public SymbolProfile: EnhancedSymbolProfile;
   public tags: Tag[];
   public tagsAvailable: Tag[];
+  public unrealizedCurrencyGainInBaseCurrency: number;
+  public unrealizedCurrencyGainInBaseCurrencyPrecision = 2;
   public user: User;
   public value: number;
 
@@ -284,6 +286,7 @@ export class GfHoldingDetailDialogComponent implements OnInit {
           quantity,
           SymbolProfile,
           tags,
+          unrealizedCurrencyGainInBaseCurrency,
           value
         }) => {
           this.activitiesCount = activitiesCount;
@@ -433,6 +436,17 @@ export class GfHoldingDetailDialogComponent implements OnInit {
           });
 
           this.holdingForm.setValue({ tags: this.tags }, { emitEvent: false });
+
+          this.unrealizedCurrencyGainInBaseCurrency =
+            unrealizedCurrencyGainInBaseCurrency;
+
+          if (
+            this.data.deviceType === 'mobile' &&
+            Math.abs(this.unrealizedCurrencyGainInBaseCurrency) >=
+              NUMERICAL_PRECISION_THRESHOLD_6_FIGURES
+          ) {
+            this.unrealizedCurrencyGainInBaseCurrencyPrecision = 0;
+          }
 
           this.value = value;
 
