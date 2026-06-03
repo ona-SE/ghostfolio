@@ -513,8 +513,14 @@ export class PortfolioService {
       currency: userCurrency
     });
 
-    const { createdAt, currentValueInBaseCurrency, hasErrors, positions } =
-      await portfolioCalculator.getSnapshot();
+    const {
+      createdAt,
+      currentValueInBaseCurrency,
+      hasErrors,
+      positions,
+      totalInvestment,
+      totalInvestmentWithCurrencyEffect
+    } = await portfolioCalculator.getSnapshot();
 
     const cashDetails = await this.accountService.getCashDetails({
       filters,
@@ -745,9 +751,12 @@ export class PortfolioService {
 
     if (withSummary) {
       summary = await this.getSummary({
+        currentValueInBaseCurrency,
         filteredValueInBaseCurrency,
         impersonationId,
         portfolioCalculator,
+        totalInvestment,
+        totalInvestmentWithCurrencyEffect,
         userCurrency,
         userId,
         balanceInBaseCurrency: cashDetails.balanceInBaseCurrency,
@@ -1858,18 +1867,24 @@ export class PortfolioService {
 
   private async getSummary({
     balanceInBaseCurrency,
+    currentValueInBaseCurrency,
     emergencyFundHoldingsValueInBaseCurrency,
     filteredValueInBaseCurrency,
     impersonationId,
     portfolioCalculator,
+    totalInvestment,
+    totalInvestmentWithCurrencyEffect,
     userCurrency,
     userId
   }: {
     balanceInBaseCurrency: number;
+    currentValueInBaseCurrency: Big;
     emergencyFundHoldingsValueInBaseCurrency: number;
     filteredValueInBaseCurrency: Big;
     impersonationId: string;
     portfolioCalculator: PortfolioCalculator;
+    totalInvestment: Big;
+    totalInvestmentWithCurrencyEffect: Big;
     userCurrency: string;
     userId: string;
   }): Promise<PortfolioSummary> {
@@ -1897,12 +1912,6 @@ export class PortfolioService {
         nonExcludedActivities.push(activity);
       }
     }
-
-    const {
-      currentValueInBaseCurrency,
-      totalInvestment,
-      totalInvestmentWithCurrencyEffect
-    } = await portfolioCalculator.getSnapshot();
 
     const { endDate, startDate } = getIntervalFromDateRange({
       dateRange: 'max'
