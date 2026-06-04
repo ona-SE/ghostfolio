@@ -23,6 +23,10 @@ export interface BuyLot {
   symbol: string;
 }
 
+// Threshold below which a fractional quantity is treated as zero,
+// preventing floating-point dust from creating ghost lots.
+const QUANTITY_EPSILON = 1e-10;
+
 @Injectable()
 export class TaxReportService {
   public constructor(
@@ -75,7 +79,7 @@ export class TaxReportService {
       }
 
       for (const lot of buyLots) {
-        if (lot.quantity > 0) {
+        if (lot.quantity > QUANTITY_EPSILON) {
           allRemainingLots.push(lot);
         }
       }
@@ -107,11 +111,12 @@ export class TaxReportService {
     let remaining = quantityToSell;
     const LONG_TERM_THRESHOLD_DAYS = 365;
 
-    while (remaining > 0 && lots.length > 0) {
+    while (remaining > QUANTITY_EPSILON && lots.length > 0) {
       const idx = costBasisMethod === 'LIFO' ? lots.length - 1 : 0;
       const lot = lots[idx];
       const matched = Math.min(remaining, lot.quantity);
-      const buyFeePerUnit = lot.quantity > 0 ? lot.fee / lot.quantity : 0;
+      const buyFeePerUnit =
+        lot.quantity > QUANTITY_EPSILON ? lot.fee / lot.quantity : 0;
 
       const costBasis = matched * lot.unitPrice + matched * buyFeePerUnit;
       const proceeds = matched * sellPrice;
@@ -134,7 +139,7 @@ export class TaxReportService {
       lot.fee -= matched * buyFeePerUnit;
       remaining -= matched;
 
-      if (lot.quantity <= 0) {
+      if (lot.quantity <= QUANTITY_EPSILON) {
         lots.splice(idx, 1);
       }
     }
@@ -213,13 +218,16 @@ export class TaxReportService {
         const sellDate = activityDate;
         const sellFee = activity.fee;
         const sellFeePerUnit =
-          activity.quantity > 0 ? sellFee / activity.quantity : 0;
+          activity.quantity > QUANTITY_EPSILON
+            ? sellFee / activity.quantity
+            : 0;
 
-        while (remainingToSell > 0 && buyLots.length > 0) {
+        while (remainingToSell > QUANTITY_EPSILON && buyLots.length > 0) {
           const idx = costBasisMethod === 'LIFO' ? buyLots.length - 1 : 0;
           const lot = buyLots[idx];
           const matched = Math.min(remainingToSell, lot.quantity);
-          const buyFeePerUnit = lot.quantity > 0 ? lot.fee / lot.quantity : 0;
+          const buyFeePerUnit =
+            lot.quantity > QUANTITY_EPSILON ? lot.fee / lot.quantity : 0;
 
           const costBasis = matched * lot.unitPrice + matched * buyFeePerUnit;
           const proceeds = matched * sellPrice - matched * sellFeePerUnit;
@@ -248,12 +256,12 @@ export class TaxReportService {
           lot.fee -= matched * buyFeePerUnit;
           remainingToSell -= matched;
 
-          if (lot.quantity <= 0) {
+          if (lot.quantity <= QUANTITY_EPSILON) {
             buyLots.splice(idx, 1);
           }
         }
 
-        if (remainingToSell > 0) {
+        if (remainingToSell > QUANTITY_EPSILON) {
           const proceeds =
             remainingToSell * sellPrice - remainingToSell * sellFeePerUnit;
 
@@ -304,17 +312,18 @@ export class TaxReportService {
   ) {
     let remaining = quantityToConsume;
 
-    while (remaining > 0 && lots.length > 0) {
+    while (remaining > QUANTITY_EPSILON && lots.length > 0) {
       const idx = method === 'LIFO' ? lots.length - 1 : 0;
       const lot = lots[idx];
       const matched = Math.min(remaining, lot.quantity);
-      const buyFeePerUnit = lot.quantity > 0 ? lot.fee / lot.quantity : 0;
+      const buyFeePerUnit =
+        lot.quantity > QUANTITY_EPSILON ? lot.fee / lot.quantity : 0;
 
       lot.quantity -= matched;
       lot.fee -= matched * buyFeePerUnit;
       remaining -= matched;
 
-      if (lot.quantity <= 0) {
+      if (lot.quantity <= QUANTITY_EPSILON) {
         lots.splice(idx, 1);
       }
     }
