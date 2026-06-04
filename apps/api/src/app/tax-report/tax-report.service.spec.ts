@@ -525,6 +525,151 @@ describe('TaxReportService', () => {
 
       expect(items).toHaveLength(0);
     });
+
+    it('should handle fractional share dividends correctly', () => {
+      const activities = [
+        makeActivity({
+          date: '2024-01-10',
+          type: 'BUY',
+          symbol: 'BTC',
+          quantity: 0.15,
+          unitPrice: 50000,
+          fee: 10
+        }),
+        makeActivity({
+          date: '2024-06-15',
+          type: 'DIVIDEND',
+          symbol: 'BTC',
+          quantity: 0.15,
+          unitPrice: 100,
+          fee: 0.5
+        })
+      ];
+
+      const items = TaxReportService.computeTaxReportItems(
+        activities,
+        accountMap,
+        startDate,
+        endDate
+      );
+
+      expect(items).toHaveLength(1);
+      expect(items[0].type).toBe('DIVIDEND');
+      // 0.15 * 100 - 0.5 = 14.5
+      expect(items[0].proceeds).toBe(14.5);
+      expect(items[0].gainLoss).toBe(14.5);
+      expect(items[0].quantity).toBe(0.15);
+    });
+
+    it('should not leave ghost lots after selling fractional shares built from multiple buys', () => {
+      // Three fractional buys that accumulate floating-point dust,
+      // then a sell of the exact total.
+      const activities = [
+        makeActivity({
+          date: '2024-01-10',
+          type: 'BUY',
+          symbol: 'BTC',
+          quantity: 0.05,
+          unitPrice: 50000,
+          fee: 5
+        }),
+        makeActivity({
+          date: '2024-02-10',
+          type: 'BUY',
+          symbol: 'BTC',
+          quantity: 0.05,
+          unitPrice: 51000,
+          fee: 5
+        }),
+        makeActivity({
+          date: '2024-03-10',
+          type: 'BUY',
+          symbol: 'BTC',
+          quantity: 0.05,
+          unitPrice: 52000,
+          fee: 5
+        }),
+        makeActivity({
+          date: '2024-09-15',
+          type: 'SELL',
+          symbol: 'BTC',
+          quantity: 0.15,
+          unitPrice: 60000,
+          fee: 10
+        })
+      ];
+
+      const items = TaxReportService.computeTaxReportItems(
+        activities,
+        accountMap,
+        startDate,
+        endDate
+      );
+
+      // Should produce exactly 3 SELL items (one per matched lot), no ghost entries
+      expect(items).toHaveLength(3);
+
+      for (const item of items) {
+        expect(item.type).toBe('SELL');
+        expect(item.quantity).toBeCloseTo(0.05, 10);
+        expect(item.acquisitionDate).not.toBe('');
+      }
+
+      // Total proceeds: 0.15 * 60000 - 10 fee = 8990
+      // (sell fee is spread per-unit across lots, so cent-level rounding applies)
+      const totalProceeds = items.reduce((sum, i) => sum + i.proceeds, 0);
+      expect(totalProceeds).toBeCloseTo(8990, 1);
+    });
+
+    it('should compute correct fee-per-unit for fractional share positions', () => {
+      // Buy 0.15 BTC with fee 25, sell 0.10, then sell 0.05
+      const activities = [
+        makeActivity({
+          date: '2024-01-10',
+          type: 'BUY',
+          symbol: 'BTC',
+          quantity: 0.15,
+          unitPrice: 50000,
+          fee: 25
+        }),
+        makeActivity({
+          date: '2024-06-15',
+          type: 'SELL',
+          symbol: 'BTC',
+          quantity: 0.10,
+          unitPrice: 55000,
+          fee: 5
+        }),
+        makeActivity({
+          date: '2024-09-15',
+          type: 'SELL',
+          symbol: 'BTC',
+          quantity: 0.05,
+          unitPrice: 58000,
+          fee: 3
+        })
+      ];
+
+      const items = TaxReportService.computeTaxReportItems(
+        activities,
+        accountMap,
+        startDate,
+        endDate
+      );
+
+      expect(items).toHaveLength(2);
+
+      // First sell: 0.10 shares
+      // costBasis = 0.10 * 50000 + 0.10 * (25/0.15) = 5000 + 16.67 = 5016.67
+      // proceeds = 0.10 * 55000 - 0.10 * (5/0.10) = 5500 - 5 = 5495
+      expect(items[0].quantity).toBeCloseTo(0.10, 10);
+      expect(items[0].costBasis).toBeCloseTo(5016.67, 2);
+
+      // Second sell: 0.05 shares
+      // costBasis = 0.05 * 50000 + 0.05 * (25/0.15) = 2500 + 8.33 = 2508.33
+      expect(items[1].quantity).toBeCloseTo(0.05, 10);
+      expect(items[1].costBasis).toBeCloseTo(2508.33, 2);
+    });
   });
 
   describe('computeTaxReportItems with LIFO', () => {
@@ -846,6 +991,52 @@ describe('TaxReportService', () => {
 
       expect(lots).toHaveLength(0);
     });
+
+    it('should not leave ghost lots when fractional buys are fully sold', () => {
+      const activities = [
+        makeActivity({
+          date: '2024-01-10',
+          type: 'BUY',
+          symbol: 'BTC',
+          quantity: 0.05,
+          unitPrice: 50000,
+          fee: 5
+        }),
+        makeActivity({
+          date: '2024-02-10',
+          type: 'BUY',
+          symbol: 'BTC',
+          quantity: 0.05,
+          unitPrice: 51000,
+          fee: 5
+        }),
+        makeActivity({
+          date: '2024-03-10',
+          type: 'BUY',
+          symbol: 'BTC',
+          quantity: 0.05,
+          unitPrice: 52000,
+          fee: 5
+        }),
+        makeActivity({
+          date: '2024-09-15',
+          type: 'SELL',
+          symbol: 'BTC',
+          quantity: 0.15,
+          unitPrice: 60000,
+          fee: 10
+        })
+      ];
+
+      const lots = TaxReportService.computeUnrealizedLots(
+        activities,
+        accountMap,
+        'FIFO'
+      );
+
+      // All shares sold — no lots should remain
+      expect(lots).toHaveLength(0);
+    });
   });
 
   describe('simulateSell', () => {
@@ -968,6 +1159,57 @@ describe('TaxReportService', () => {
 
       // Original should be untouched
       expect(buyLots[0].quantity).toBe(10);
+    });
+
+    it('should handle fractional share lots without ghost matches', () => {
+      const buyLots = [
+        {
+          date: new Date('2024-01-15'),
+          quantity: 0.05,
+          unitPrice: 50000,
+          fee: 5,
+          currency: 'USD',
+          accountName: 'Main',
+          symbol: 'BTC'
+        },
+        {
+          date: new Date('2024-02-15'),
+          quantity: 0.05,
+          unitPrice: 51000,
+          fee: 5,
+          currency: 'USD',
+          accountName: 'Main',
+          symbol: 'BTC'
+        },
+        {
+          date: new Date('2024-03-15'),
+          quantity: 0.05,
+          unitPrice: 52000,
+          fee: 5,
+          currency: 'USD',
+          accountName: 'Main',
+          symbol: 'BTC'
+        }
+      ];
+
+      const result = TaxReportService.simulateSell({
+        buyLots,
+        costBasisMethod: 'FIFO',
+        now: new Date('2024-12-01'),
+        quantityToSell: 0.15,
+        sellPrice: 60000
+      });
+
+      // Should match exactly 3 lots, no ghost 4th entry
+      expect(result).toHaveLength(3);
+
+      for (const lot of result) {
+        expect(lot.quantity).toBeCloseTo(0.05, 10);
+      }
+
+      const totalProceeds = result.reduce((sum, l) => sum + l.proceeds, 0);
+      // 0.15 * 60000 = 9000
+      expect(totalProceeds).toBeCloseTo(9000, 2);
     });
   });
 });
