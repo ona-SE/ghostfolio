@@ -31,9 +31,15 @@ import { ExchangeRatesByCurrency } from './interfaces/exchange-rate-data.interfa
 
 @Injectable()
 export class ExchangeRateDataService {
+  private static readonly EXCHANGE_RATE_CACHE_TTL = ms('5 minutes');
+
   private currencies: string[] = [];
   private currencyPairs: DataGatheringItem[] = [];
   private derivedCurrencyFactors: { [currencyPair: string]: number } = {};
+  private exchangeRateCache = new Map<
+    string,
+    { data: { [dateString: string]: number }; expiresAt: number }
+  >();
   private exchangeRates: { [currencyPair: string]: number } = {};
 
   public constructor(
@@ -141,6 +147,7 @@ export class ExchangeRateDataService {
     this.currencies = await this.prepareCurrencies();
     this.currencyPairs = [];
     this.derivedCurrencyFactors = {};
+    this.exchangeRateCache.clear();
     this.exchangeRates = {};
 
     for (const { currency, factor, rootCurrency } of DERIVED_CURRENCIES) {
@@ -404,6 +411,20 @@ export class ExchangeRateDataService {
     return undefined;
   }
 
+  private getExchangeRateCacheKey({
+    currencyFrom,
+    currencyTo,
+    endDate,
+    startDate
+  }: {
+    currencyFrom: string;
+    currencyTo: string;
+    endDate: Date;
+    startDate: Date;
+  }): string {
+    return `${currencyFrom}${currencyTo}-${format(startDate, DATE_FORMAT)}-${format(endDate, DATE_FORMAT)}`;
+  }
+
   private async getExchangeRates({
     currencyFrom,
     currencyTo,
@@ -435,6 +456,20 @@ export class ExchangeRateDataService {
       }
 
       return factors;
+    }
+
+    // Check in-memory cache before hitting the database
+    const cacheKey = this.getExchangeRateCacheKey({
+      currencyFrom,
+      currencyTo,
+      endDate,
+      startDate
+    });
+
+    const cached = this.exchangeRateCache.get(cacheKey);
+
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.data;
     }
 
     const dataSource = this.dataProviderService.getDataSourceForExchangeRates();
@@ -538,6 +573,15 @@ export class ExchangeRateDataService {
           Logger.error(`${errorMessage}.`, 'ExchangeRateDataService');
         }
       }
+    }
+
+    // Store in in-memory cache
+    if (Object.keys(factors).length > 0) {
+      this.exchangeRateCache.set(cacheKey, {
+        data: factors,
+        expiresAt:
+          Date.now() + ExchangeRateDataService.EXCHANGE_RATE_CACHE_TTL
+      });
     }
 
     return factors;
