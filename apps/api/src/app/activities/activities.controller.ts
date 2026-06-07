@@ -143,6 +143,7 @@ export class ActivitiesController {
     @Query('activityTypes') filterByTypes?: string,
     @Query('assetClasses') filterByAssetClasses?: string,
     @Query('dataSource') filterByDataSource?: string,
+    @Query('query') filterBySearchQuery?: string,
     @Query('range') dateRange?: DateRange,
     @Query('skip') skip?: number,
     @Query('sortColumn') sortColumn?: string,
@@ -162,6 +163,7 @@ export class ActivitiesController {
       filterByAccounts,
       filterByAssetClasses,
       filterByDataSource,
+      filterBySearchQuery,
       filterBySymbol,
       filterByTags
     });

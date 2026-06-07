@@ -35,6 +35,7 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
 import { MatMenuModule } from '@angular/material/menu';
 import {
   MatPaginator,
@@ -53,6 +54,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { IonIcon } from '@ionic/angular/standalone';
 import { Type as ActivityType } from '@prisma/client';
 import { isUUID } from 'class-validator';
+import { debounceTime, distinctUntilChanged } from 'rxjs';
 import { addIcons } from 'ionicons';
 import {
   alertCircleOutline,
@@ -68,6 +70,7 @@ import {
   ellipsisVertical,
   pricetagOutline,
   receiptOutline,
+  searchOutline,
   tabletLandscapeOutline,
   trashOutline
 } from 'ionicons/icons';
@@ -91,6 +94,7 @@ import { GfValueComponent } from '../value/value.component';
     MatButtonModule,
     MatCheckboxModule,
     MatFormFieldModule,
+    MatInputModule,
     MatMenuModule,
     MatPaginatorModule,
     MatSelectModule,
@@ -143,6 +147,7 @@ export class GfActivitiesTableComponent implements AfterViewInit, OnInit {
   @Output() import = new EventEmitter<void>();
   @Output() importDividends = new EventEmitter<AssetProfileIdentifier>();
   @Output() pageChanged = new EventEmitter<PageEvent>();
+  @Output() searchChanged = new EventEmitter<string>();
   @Output() selectedActivities = new EventEmitter<Activity[]>();
   @Output() sortChanged = new EventEmitter<Sort>();
   @Output() typesFilterChanged = new EventEmitter<string[]>();
@@ -154,6 +159,7 @@ export class GfActivitiesTableComponent implements AfterViewInit, OnInit {
   public hasDrafts = false;
   public hasErrors = false;
   public isUUID = isUUID;
+  public searchControl = new FormControl<string>('');
   public selectedRows = new SelectionModel<Activity>(true, []);
   public typesFilter = new FormControl<string[]>([]);
 
@@ -241,6 +247,7 @@ export class GfActivitiesTableComponent implements AfterViewInit, OnInit {
       ellipsisVertical,
       pricetagOutline,
       receiptOutline,
+      searchOutline,
       tabletLandscapeOutline,
       trashOutline
     });
@@ -263,6 +270,16 @@ export class GfActivitiesTableComponent implements AfterViewInit, OnInit {
           this.selectedActivities.emit(selectedRows.source.selected);
         });
     }
+
+    this.searchControl.valueChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe((query) => {
+        this.searchChanged.emit(query?.trim() ?? '');
+      });
 
     this.typesFilter.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))

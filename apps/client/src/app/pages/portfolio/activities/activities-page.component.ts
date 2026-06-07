@@ -7,6 +7,7 @@ import { downloadAsFile } from '@ghostfolio/common/helper';
 import {
   Activity,
   AssetProfileIdentifier,
+  Filter,
   User
 } from '@ghostfolio/common/interfaces';
 import { hasPermission, permissions } from '@ghostfolio/common/permissions';
@@ -65,6 +66,7 @@ export class GfActivitiesPageComponent implements OnInit {
   public pageIndex = 0;
   public pageSize = DEFAULT_PAGE_SIZE;
   public routeQueryParams: Subscription;
+  public searchQuery = '';
   public sortColumn = 'date';
   public sortDirection: SortDirection = 'desc';
   public tags: Tag[] = [];
@@ -153,13 +155,22 @@ export class GfActivitiesPageComponent implements OnInit {
     const dateRange = this.user?.settings?.dateRange;
     const range = this.isCalendarYear(dateRange) ? dateRange : undefined;
 
+    const filters: Filter[] = this.userService.getFilters();
+
+    if (this.searchQuery) {
+      filters.push({
+        id: this.searchQuery,
+        type: 'SEARCH_QUERY'
+      });
+    }
+
     this.dataService
       .fetchActivities({
+        filters,
         range,
         activityTypes: this.activityTypesFilter.length
           ? this.activityTypesFilter
           : undefined,
-        filters: this.userService.getFilters(),
         skip: this.pageIndex * this.pageSize,
         sortColumn: this.sortColumn,
         sortDirection: this.sortDirection,
@@ -468,6 +479,13 @@ export class GfActivitiesPageComponent implements OnInit {
 
         this.changeDetectorRef.markForCheck();
       });
+  }
+
+  public onSearchChanged(query: string) {
+    this.searchQuery = query;
+    this.pageIndex = 0;
+
+    this.fetchActivities();
   }
 
   public onSortChanged({ active, direction }: Sort) {

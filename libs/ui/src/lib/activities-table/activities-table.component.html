@@ -1,5 +1,5 @@
 <div class="d-flex justify-content-end justify-content-lg-between">
-  <div class="d-none d-lg-flex">
+  <div class="align-items-center d-none d-lg-flex gap-2">
     @if (hasPermissionToFilterByType) {
       <mat-form-field appearance="outline" class="without-hint">
         <mat-label i18n>Type</mat-label>
@@ -15,6 +15,25 @@
         </mat-select>
       </mat-form-field>
     }
+    <mat-form-field appearance="outline" class="without-hint search-field">
+      <mat-label i18n>Search</mat-label>
+      <input
+        matInput
+        type="text"
+        [formControl]="searchControl"
+      />
+      <ion-icon matPrefix class="ml-1 mr-1" name="search-outline" />
+      @if (searchControl.value) {
+        <button
+          mat-icon-button
+          matSuffix
+          type="button"
+          (click)="searchControl.setValue('')"
+        >
+          <ion-icon name="close-outline" />
+        </button>
+      }
+    </mat-form-field>
   </div>
 
   @if (hasPermissionToCreateActivity) {

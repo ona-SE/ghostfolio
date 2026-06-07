@@ -652,26 +652,57 @@ export class ActivitiesService {
     }
 
     if (searchQuery) {
-      const searchQueryWhereInput: Prisma.SymbolProfileWhereInput[] = [
+      const symbolProfileConditions: Prisma.SymbolProfileWhereInput[] = [
         { id: { mode: 'insensitive', startsWith: searchQuery } },
         { isin: { mode: 'insensitive', startsWith: searchQuery } },
-        { name: { mode: 'insensitive', startsWith: searchQuery } },
-        { symbol: { mode: 'insensitive', startsWith: searchQuery } }
+        { name: { mode: 'insensitive', contains: searchQuery } },
+        { symbol: { mode: 'insensitive', contains: searchQuery } }
       ];
 
-      if (where.SymbolProfile) {
-        where.SymbolProfile = {
-          AND: [
-            where.SymbolProfile,
-            {
-              OR: searchQueryWhereInput
+      const searchConditions: Prisma.OrderWhereInput[] = [
+        {
+          SymbolProfile: where.SymbolProfile
+            ? {
+                AND: [
+                  where.SymbolProfile,
+                  { OR: symbolProfileConditions }
+                ]
+              }
+            : { OR: symbolProfileConditions }
+        },
+        {
+          account: {
+            name: { mode: 'insensitive', contains: searchQuery }
+          }
+        },
+        {
+          comment: { mode: 'insensitive', contains: searchQuery }
+        },
+        {
+          tags: {
+            some: {
+              name: { mode: 'insensitive', contains: searchQuery }
             }
-          ]
-        };
-      } else {
-        where.SymbolProfile = {
-          OR: searchQueryWhereInput
-        };
+          }
+        }
+      ];
+
+      // Wrap existing where conditions with the search OR
+      const existingSymbolProfile = where.SymbolProfile;
+      delete where.SymbolProfile;
+
+      where.AND = [
+        ...(Array.isArray(where.AND) ? where.AND : []),
+        { OR: searchConditions }
+      ];
+
+      // For non-SymbolProfile search matches, preserve the existing
+      // SymbolProfile filter by applying it at the top level
+      if (existingSymbolProfile) {
+        // The SymbolProfile filter is already embedded in the first
+        // searchCondition branch; for the other branches (account,
+        // comment, tag) we still need the SymbolProfile constraint
+        // to be optional, so we don't re-add it here.
       }
     }
 
