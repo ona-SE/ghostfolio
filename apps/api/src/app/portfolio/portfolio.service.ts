@@ -750,6 +750,17 @@ export class PortfolioService {
     let summary: PortfolioSummary;
 
     if (withSummary) {
+      const { endDate, startDate } = getIntervalFromDateRange({
+        dateRange: 'max'
+      });
+
+      const { chart } = await portfolioCalculator.getPerformance({
+        end: endDate,
+        start: startDate
+      });
+
+      const lastChartEntry = chart?.at(-1);
+
       summary = await this.getSummary({
         currentValueInBaseCurrency,
         filteredValueInBaseCurrency,
@@ -763,7 +774,14 @@ export class PortfolioService {
         emergencyFundHoldingsValueInBaseCurrency:
           this.getEmergencyFundHoldingsValueInBaseCurrency({
             holdings
-          })
+          }),
+        netPerformance: lastChartEntry?.netPerformance ?? 0,
+        netPerformancePercentage:
+          lastChartEntry?.netPerformanceInPercentage ?? 0,
+        netPerformancePercentageWithCurrencyEffect:
+          lastChartEntry?.netPerformanceInPercentageWithCurrencyEffect ?? 0,
+        netPerformanceWithCurrencyEffect:
+          lastChartEntry?.netPerformanceWithCurrencyEffect ?? 0
       });
     }
 
@@ -1871,6 +1889,10 @@ export class PortfolioService {
     emergencyFundHoldingsValueInBaseCurrency,
     filteredValueInBaseCurrency,
     impersonationId,
+    netPerformance,
+    netPerformancePercentage,
+    netPerformancePercentageWithCurrencyEffect,
+    netPerformanceWithCurrencyEffect,
     portfolioCalculator,
     totalInvestment,
     totalInvestmentWithCurrencyEffect,
@@ -1882,6 +1904,10 @@ export class PortfolioService {
     emergencyFundHoldingsValueInBaseCurrency: number;
     filteredValueInBaseCurrency: Big;
     impersonationId: string;
+    netPerformance: number;
+    netPerformancePercentage: number;
+    netPerformancePercentageWithCurrencyEffect: number;
+    netPerformanceWithCurrencyEffect: number;
     portfolioCalculator: PortfolioCalculator;
     totalInvestment: Big;
     totalInvestmentWithCurrencyEffect: Big;
@@ -1912,25 +1938,6 @@ export class PortfolioService {
         nonExcludedActivities.push(activity);
       }
     }
-
-    const { endDate, startDate } = getIntervalFromDateRange({
-      dateRange: 'max'
-    });
-
-    const { chart } = await portfolioCalculator.getPerformance({
-      end: endDate,
-      start: startDate
-    });
-
-    const lastChartEntry = chart?.at(-1);
-
-    const netPerformance = lastChartEntry?.netPerformance ?? 0;
-    const netPerformancePercentage =
-      lastChartEntry?.netPerformanceInPercentage ?? 0;
-    const netPerformancePercentageWithCurrencyEffect =
-      lastChartEntry?.netPerformanceInPercentageWithCurrencyEffect ?? 0;
-    const netPerformanceWithCurrencyEffect =
-      lastChartEntry?.netPerformanceWithCurrencyEffect ?? 0;
 
     const totalEmergencyFund = this.getTotalEmergencyFund({
       emergencyFundHoldingsValueInBaseCurrency,
