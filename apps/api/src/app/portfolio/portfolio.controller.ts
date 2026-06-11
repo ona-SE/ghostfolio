@@ -44,7 +44,6 @@ import type {
 import {
   Body,
   Controller,
-  Delete,
   Get,
   Headers,
   HttpException,
