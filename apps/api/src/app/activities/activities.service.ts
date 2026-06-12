@@ -522,6 +522,57 @@ export class ActivitiesService {
     });
   }
 
+  /**
+   * Adds a free-text search to the given Prisma `where` input by matching the
+   * search term against the symbol profile (id, ISIN, name, symbol), account
+   * name, comment and tag names.
+   *
+   * The search is appended as an AND'd OR group so that any pre-existing
+   * `where.SymbolProfile` constraint (e.g. asset class, symbol or data source
+   * filters) is preserved at the top level and keeps applying to every search
+   * branch — including matches on account name, comment and tags.
+   */
+  public static applySearchQueryToWhereInput({
+    searchQuery,
+    where
+  }: {
+    searchQuery: string;
+    where: Prisma.OrderWhereInput;
+  }) {
+    const symbolProfileConditions: Prisma.SymbolProfileWhereInput[] = [
+      { id: { mode: 'insensitive', startsWith: searchQuery } },
+      { isin: { mode: 'insensitive', startsWith: searchQuery } },
+      { name: { mode: 'insensitive', contains: searchQuery } },
+      { symbol: { mode: 'insensitive', contains: searchQuery } }
+    ];
+
+    const searchConditions: Prisma.OrderWhereInput[] = [
+      { SymbolProfile: { OR: symbolProfileConditions } },
+      {
+        account: {
+          name: { mode: 'insensitive', contains: searchQuery }
+        }
+      },
+      {
+        comment: { mode: 'insensitive', contains: searchQuery }
+      },
+      {
+        tags: {
+          some: {
+            name: { mode: 'insensitive', contains: searchQuery }
+          }
+        }
+      }
+    ];
+
+    where.AND = [
+      ...(Array.isArray(where.AND) ? where.AND : []),
+      { OR: searchConditions }
+    ];
+
+    return where;
+  }
+
   public async getActivities({
     endDate,
     filters,
@@ -652,58 +703,7 @@ export class ActivitiesService {
     }
 
     if (searchQuery) {
-      const symbolProfileConditions: Prisma.SymbolProfileWhereInput[] = [
-        { id: { mode: 'insensitive', startsWith: searchQuery } },
-        { isin: { mode: 'insensitive', startsWith: searchQuery } },
-        { name: { mode: 'insensitive', contains: searchQuery } },
-        { symbol: { mode: 'insensitive', contains: searchQuery } }
-      ];
-
-      const searchConditions: Prisma.OrderWhereInput[] = [
-        {
-          SymbolProfile: where.SymbolProfile
-            ? {
-                AND: [
-                  where.SymbolProfile,
-                  { OR: symbolProfileConditions }
-                ]
-              }
-            : { OR: symbolProfileConditions }
-        },
-        {
-          account: {
-            name: { mode: 'insensitive', contains: searchQuery }
-          }
-        },
-        {
-          comment: { mode: 'insensitive', contains: searchQuery }
-        },
-        {
-          tags: {
-            some: {
-              name: { mode: 'insensitive', contains: searchQuery }
-            }
-          }
-        }
-      ];
-
-      // Wrap existing where conditions with the search OR
-      const existingSymbolProfile = where.SymbolProfile;
-      delete where.SymbolProfile;
-
-      where.AND = [
-        ...(Array.isArray(where.AND) ? where.AND : []),
-        { OR: searchConditions }
-      ];
-
-      // For non-SymbolProfile search matches, preserve the existing
-      // SymbolProfile filter by applying it at the top level
-      if (existingSymbolProfile) {
-        // The SymbolProfile filter is already embedded in the first
-        // searchCondition branch; for the other branches (account,
-        // comment, tag) we still need the SymbolProfile constraint
-        // to be optional, so we don't re-add it here.
-      }
+      ActivitiesService.applySearchQueryToWhereInput({ searchQuery, where });
     }
 
     if (filtersByTag?.length > 0) {
