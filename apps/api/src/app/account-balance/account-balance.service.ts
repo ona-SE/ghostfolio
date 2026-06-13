@@ -10,6 +10,7 @@ import {
   HistoricalDataItem
 } from '@ghostfolio/common/interfaces';
 
+import { utc } from '@date-fns/utc';
 import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AccountBalance, Prisma } from '@prisma/client';
@@ -114,7 +115,11 @@ export class AccountBalanceService {
     const lastBalancesByAccount: { [accountId: string]: Big } = {};
 
     for (const { accountId, date, valueInBaseCurrency } of balances) {
-      const formattedDate = format(date, DATE_FORMAT);
+      // Account balances are stored at UTC midnight (see resetHours), so the
+      // date must be formatted in UTC. Formatting in the runtime's local
+      // timezone would shift the grouping date by a day for users in non-UTC
+      // timezones.
+      const formattedDate = format(date, DATE_FORMAT, { in: utc });
 
       lastBalancesByAccount[accountId] = new Big(valueInBaseCurrency);
 
