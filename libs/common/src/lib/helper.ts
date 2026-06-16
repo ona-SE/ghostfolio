@@ -414,9 +414,48 @@ export function isRootCurrency(aCurrency: string) {
   });
 }
 
+const parseDateCache = new Map<string, Date>();
+const PARSE_DATE_CACHE_MAX_SIZE = 10000;
+
 export function parseDate(date: string): Date | undefined {
   if (!date) {
     return undefined;
+  }
+
+  // Fast path: the calculator normalizes all internal dates to the canonical
+  // 'yyyy-MM-dd' format and parses them repeatedly within tight loops over
+  // hundreds of activities and thousands of chart dates. Avoid the per-call
+  // `isMatch` scan over every supported format and memoize the result.
+  const cachedDate = parseDateCache.get(date);
+
+  if (cachedDate) {
+    return new Date(cachedDate.getTime());
+  }
+
+  const canonicalMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+
+  if (canonicalMatch) {
+    const year = Number(canonicalMatch[1]);
+    const month = Number(canonicalMatch[2]);
+    const day = Number(canonicalMatch[3]);
+    const parsedDate = new Date(year, month - 1, day);
+
+    // Reject out-of-range values (e.g. 2021-02-30) by verifying the
+    // constructed date did not overflow into the next month, matching the
+    // strict validation performed by date-fns' `isMatch`.
+    if (
+      parsedDate.getFullYear() === year &&
+      parsedDate.getMonth() === month - 1 &&
+      parsedDate.getDate() === day
+    ) {
+      if (parseDateCache.size >= PARSE_DATE_CACHE_MAX_SIZE) {
+        parseDateCache.clear();
+      }
+
+      parseDateCache.set(date, new Date(parsedDate.getTime()));
+
+      return parsedDate;
+    }
   }
 
   // Transform 'yyyyMMdd' format to supported format by parse function
