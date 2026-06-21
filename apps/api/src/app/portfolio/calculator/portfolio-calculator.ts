@@ -65,6 +65,7 @@ export abstract class PortfolioCalculator {
   protected accountBalanceItems: HistoricalDataItem[];
   protected activities: PortfolioOrder[];
 
+  private activitiesBySymbol: { [symbol: string]: PortfolioOrder[] };
   private configurationService: ConfigurationService;
   private currency: string;
   private currentRateService: CurrentRateService;
@@ -849,6 +850,32 @@ export abstract class PortfolioCalculator {
 
   public getTransactionPoints() {
     return this.transactionPoints;
+  }
+
+  /**
+   * Returns the activities for a given symbol.
+   *
+   * The symbol-to-activities grouping is computed once and memoized. Previously
+   * each getSymbolMetrics() call filtered the full activities array, resulting
+   * in O(activities × symbols) work per snapshot. For large portfolios (500+
+   * activities across many holdings) this dominated the calculation time.
+   */
+  protected getActivitiesBySymbol(symbol: string): PortfolioOrder[] {
+    if (!this.activitiesBySymbol) {
+      this.activitiesBySymbol = {};
+
+      for (const activity of this.activities) {
+        const activitySymbol = activity.SymbolProfile.symbol;
+
+        if (!this.activitiesBySymbol[activitySymbol]) {
+          this.activitiesBySymbol[activitySymbol] = [];
+        }
+
+        this.activitiesBySymbol[activitySymbol].push(activity);
+      }
+    }
+
+    return this.activitiesBySymbol[symbol] ?? [];
   }
 
   private getChartDateMap({

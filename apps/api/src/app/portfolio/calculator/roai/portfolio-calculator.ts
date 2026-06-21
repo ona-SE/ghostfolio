@@ -194,9 +194,7 @@ export class RoaiPortfolioCalculator extends PortfolioCalculator {
 
     // Clone orders to keep the original values in this.orders
     let orders: PortfolioOrderItem[] = cloneDeep(
-      this.activities.filter(({ SymbolProfile }) => {
-        return SymbolProfile.symbol === symbol;
-      })
+      this.getActivitiesBySymbol(symbol)
     );
 
     const isCash = orders[0]?.SymbolProfile?.assetSubClass === 'CASH';
