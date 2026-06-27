@@ -66,7 +66,7 @@ import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 export class GfAnalysisPageComponent implements OnInit {
   @ViewChild(MatMenuTrigger) actionsMenuButton!: MatMenuTrigger;
 
-  public benchmark: Partial<SymbolProfile>;
+  public benchmark: Partial<SymbolProfile> | undefined;
   public benchmarkDataItems: HistoricalDataItem[] = [];
   public benchmarkPerformanceDataItems: HistoricalDataItem[] = [];
   public benchmarks: Partial<SymbolProfile>[];
@@ -92,15 +92,15 @@ export class GfAnalysisPageComponent implements OnInit {
     { label: $localize`Yearly`, value: 'year' }
   ];
   public performance: PortfolioPerformance;
-  public performanceDataItems: HistoricalDataItem[];
-  public performanceDataItemsInPercentage: HistoricalDataItem[];
+  public performanceDataItems: HistoricalDataItem[] = [];
+  public performanceDataItemsInPercentage: HistoricalDataItem[] = [];
   public portfolioEvolutionDataLabel = $localize`Investment`;
   public precision = 2;
   public streaks: PortfolioInvestmentsResponse['streaks'];
   public top3: PortfolioPosition[];
   public unitCurrentStreak: string;
   public unitLongestStreak: string;
-  public user: User;
+  public user: User | undefined;
 
   public constructor(
     private changeDetectorRef: ChangeDetectorRef,
@@ -120,9 +120,13 @@ export class GfAnalysisPageComponent implements OnInit {
 
   get savingsRate() {
     const savingsRatePerMonth =
-      this.hasImpersonationId || this.user.settings.isRestrictedView
+      this.hasImpersonationId || this.user?.settings.isRestrictedView
         ? undefined
         : this.user?.settings?.savingsRate;
+
+    if (!savingsRatePerMonth) {
+      return undefined;
+    }
 
     return this.mode === 'year'
       ? savingsRatePerMonth * 12
@@ -146,7 +150,7 @@ export class GfAnalysisPageComponent implements OnInit {
           this.user = state.user;
 
           this.benchmark = this.benchmarks.find(({ id }) => {
-            return id === this.user.settings?.benchmark;
+            return id === state.user.settings?.benchmark;
           });
 
           this.hasPermissionToReadAiPrompt = hasPermission(
@@ -229,7 +233,7 @@ export class GfAnalysisPageComponent implements OnInit {
       .fetchDividends({
         filters: this.userService.getFilters(),
         groupBy: this.mode,
-        range: this.user?.settings?.dateRange
+        range: this.user?.settings?.dateRange ?? 'max'
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(({ dividends }) => {
@@ -244,7 +248,7 @@ export class GfAnalysisPageComponent implements OnInit {
       .fetchInvestments({
         filters: this.userService.getFilters(),
         groupBy: this.mode,
-        range: this.user?.settings?.dateRange
+        range: this.user?.settings?.dateRange ?? 'max'
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(({ investments, streaks }) => {
@@ -279,7 +283,7 @@ export class GfAnalysisPageComponent implements OnInit {
     this.dataService
       .fetchPortfolioPerformance({
         filters: this.userService.getFilters(),
-        range: this.user?.settings?.dateRange
+        range: this.user?.settings?.dateRange ?? 'max'
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(({ chart, firstOrderDate, performance }) => {
@@ -299,24 +303,24 @@ export class GfAnalysisPageComponent implements OnInit {
             valueInPercentage,
             valueWithCurrencyEffect
           }
-        ] of chart.entries()) {
+        ] of (chart ?? []).entries()) {
           if (index > 0 || this.user?.settings?.dateRange === 'max') {
             // Ignore first item where value is 0
             this.investments.push({
               date,
-              investment: totalInvestmentValueWithCurrencyEffect
+              investment: totalInvestmentValueWithCurrencyEffect ?? 0
             });
             this.performanceDataItems.push({
               date,
               value: isNumber(valueWithCurrencyEffect)
                 ? valueWithCurrencyEffect
-                : valueInPercentage
+                : (valueInPercentage ?? 0)
             });
           }
 
           this.performanceDataItemsInPercentage.push({
             date,
-            value: netPerformanceInPercentageWithCurrencyEffect
+            value: netPerformanceInPercentageWithCurrencyEffect ?? 0
           });
         }
 
@@ -375,10 +379,10 @@ export class GfAnalysisPageComponent implements OnInit {
     this.benchmarkDataItems = [];
     this.benchmarkPerformanceDataItems = [];
 
-    if (this.user.settings.benchmark) {
+    if (this.user?.settings.benchmark) {
       const { dataSource, symbol } =
         this.benchmarks.find(({ id }) => {
-          return id === this.user.settings.benchmark;
+          return id === this.user?.settings.benchmark;
         }) ?? {};
 
       if (dataSource && symbol) {
@@ -389,7 +393,7 @@ export class GfAnalysisPageComponent implements OnInit {
             dataSource,
             symbol,
             filters: this.userService.getFilters(),
-            range: this.user?.settings?.dateRange,
+            range: this.user?.settings?.dateRange ?? 'max',
             startDate: this.firstOrderDate
           })
           .pipe(takeUntilDestroyed(this.destroyRef))

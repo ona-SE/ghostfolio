@@ -12,7 +12,6 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
 import { MatTableModule } from '@angular/material/table';
 import { IonIcon } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
@@ -23,7 +22,6 @@ import {
   playOutline,
   trashOutline
 } from 'ionicons/icons';
-import { Subject } from 'rxjs';
 
 @Component({
   host: { class: 'has-fab' },
@@ -45,13 +43,10 @@ export class GfDcaPageComponent implements OnInit {
   public plans: RecurringInvestmentPlan[] = [];
   public user: User;
 
-  private unsubscribeSubject = new Subject<void>();
-
   public constructor(
     private changeDetectorRef: ChangeDetectorRef,
     private dataService: DataService,
     private destroyRef: DestroyRef,
-    private dialog: MatDialog,
     private userService: UserService
   ) {
     this.userService.stateChanged
