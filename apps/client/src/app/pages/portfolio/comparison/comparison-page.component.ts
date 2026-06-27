@@ -46,7 +46,7 @@ import { takeUntil } from 'rxjs/operators';
 })
 export class GfComparisonPageComponent implements OnInit {
   public accounts: Account[] = [];
-  public comparisonData: PortfolioComparisonResponse;
+  public comparisonData: PortfolioComparisonResponse | undefined;
   public deviceType: string;
   public holdingOverlapSymbols: string[] = [];
   public isLoading = false;

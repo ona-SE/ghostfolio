@@ -57,7 +57,7 @@ import { ImportActivitiesDialogParams } from './import-activities-dialog/interfa
 })
 export class GfActivitiesPageComponent implements OnInit {
   public activityTypesFilter: string[] = [];
-  public dataSource: MatTableDataSource<Activity>;
+  public dataSource: MatTableDataSource<Activity> | undefined;
   public deviceType: string;
   public hasImpersonationId: boolean;
   public hasPermissionToCreateActivity: boolean;
@@ -71,7 +71,7 @@ export class GfActivitiesPageComponent implements OnInit {
   public sortDirection: SortDirection = 'desc';
   public tags: Tag[] = [];
   public totalItems: number | undefined;
-  public user: User;
+  public user: User | undefined;
 
   public constructor(
     private changeDetectorRef: ChangeDetectorRef,
@@ -295,7 +295,7 @@ export class GfActivitiesPageComponent implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((data) => {
         for (const activity of data.activities) {
-          delete activity.id;
+          delete (activity as unknown as Partial<Activity>).id;
         }
 
         downloadAsFile({
@@ -344,7 +344,7 @@ export class GfActivitiesPageComponent implements OnInit {
           String(activity.unitPrice),
           String(activity.fee),
           activity.currency ?? '',
-          accountMap.get(activity.accountId) ?? ''
+          activity.accountId ? (accountMap.get(activity.accountId) ?? '') : ''
         ]);
 
         downloadAsFile({
@@ -425,6 +425,10 @@ export class GfActivitiesPageComponent implements OnInit {
   }
 
   public onImport() {
+    if (!this.user) {
+      return;
+    }
+
     const dialogRef = this.dialog.open<
       GfImportActivitiesDialogComponent,
       ImportActivitiesDialogParams
@@ -453,6 +457,10 @@ export class GfActivitiesPageComponent implements OnInit {
   }
 
   public onImportDividends() {
+    if (!this.user) {
+      return;
+    }
+
     const dialogRef = this.dialog.open<
       GfImportActivitiesDialogComponent,
       ImportActivitiesDialogParams
@@ -510,13 +518,17 @@ export class GfActivitiesPageComponent implements OnInit {
   }
 
   public openUpdateActivityDialog(aActivity: Activity) {
+    if (!this.user) {
+      return;
+    }
+
     const dialogRef = this.dialog.open<
       GfCreateOrUpdateActivityDialogComponent,
       CreateOrUpdateActivityDialogParams
     >(GfCreateOrUpdateActivityDialogComponent, {
       data: {
         activity: aActivity,
-        accounts: this.user?.accounts,
+        accounts: this.user.accounts,
         user: this.user
       },
       height: this.deviceType === 'mobile' ? '98vh' : '80vh',
@@ -544,7 +556,7 @@ export class GfActivitiesPageComponent implements OnInit {
       });
   }
 
-  private isCalendarYear(dateRange: DateRange) {
+  private isCalendarYear(dateRange: DateRange | undefined) {
     if (!dateRange) {
       return false;
     }
@@ -558,13 +570,14 @@ export class GfActivitiesPageComponent implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((user) => {
         this.updateUser(user);
+        const currentUser = user;
 
         const dialogRef = this.dialog.open<
           GfCreateOrUpdateActivityDialogComponent,
           CreateOrUpdateActivityDialogParams
         >(GfCreateOrUpdateActivityDialogComponent, {
           data: {
-            accounts: this.user?.accounts,
+            accounts: currentUser.accounts,
             activity: {
               ...aActivity,
               accountId: aActivity?.accountId,
@@ -573,8 +586,8 @@ export class GfActivitiesPageComponent implements OnInit {
               fee: 0,
               type: aActivity?.type ?? 'BUY',
               unitPrice: null
-            },
-            user: this.user
+            } as unknown as CreateOrUpdateActivityDialogParams['activity'],
+            user: currentUser
           },
           height: this.deviceType === 'mobile' ? '98vh' : '80vh',
           width: this.deviceType === 'mobile' ? '100vw' : '50rem'

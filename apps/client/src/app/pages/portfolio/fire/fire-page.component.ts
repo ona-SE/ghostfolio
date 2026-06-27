@@ -43,15 +43,15 @@ import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 })
 export class GfFirePageComponent implements OnInit {
   public deviceType: string;
-  public fireWealth: FireWealth;
+  public fireWealth: FireWealth | undefined;
   public hasImpersonationId: boolean;
   public hasPermissionToUpdateUserSettings: boolean;
   public isLoading = false;
-  public projectedTotalAmount: number;
-  public retirementDate: Date;
-  public safeWithdrawalRateControl = new FormControl<number>(undefined);
+  public projectedTotalAmount: number | undefined;
+  public retirementDate: Date | undefined;
+  public safeWithdrawalRateControl = new FormControl<number | null>(null);
   public safeWithdrawalRateOptions = [0.025, 0.03, 0.035, 0.04, 0.045];
-  public user: User;
+  public user: User | undefined;
   public withdrawalRatePerMonth: Big;
   public withdrawalRatePerMonthProjected: Big;
   public withdrawalRatePerYear: Big;
@@ -76,12 +76,12 @@ export class GfFirePageComponent implements OnInit {
       .subscribe(({ summary }) => {
         this.fireWealth = {
           today: {
-            valueInBaseCurrency: summary.fireWealth
+            valueInBaseCurrency: summary?.fireWealth
               ? summary.fireWealth.today.valueInBaseCurrency
               : 0
           }
         };
-        if (this.user.subscription?.type === SubscriptionType.Basic) {
+        if (this.user?.subscription?.type === SubscriptionType.Basic) {
           this.fireWealth = {
             today: {
               valueInBaseCurrency: 10000
@@ -122,7 +122,7 @@ export class GfFirePageComponent implements OnInit {
                 );
 
           this.safeWithdrawalRateControl.setValue(
-            this.user.settings.safeWithdrawalRate,
+            this.user.settings.safeWithdrawalRate ?? null,
             { emitEvent: false }
           );
 
@@ -165,7 +165,7 @@ export class GfFirePageComponent implements OnInit {
     this.dataService
       .putUserSetting({
         retirementDate: retirementDate.toISOString(),
-        projectedTotalAmount: null
+        projectedTotalAmount: undefined
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
@@ -219,7 +219,7 @@ export class GfFirePageComponent implements OnInit {
     this.dataService
       .putUserSetting({
         projectedTotalAmount,
-        retirementDate: null
+        retirementDate: undefined
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {

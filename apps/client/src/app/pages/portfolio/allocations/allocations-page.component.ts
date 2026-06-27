@@ -6,6 +6,7 @@ import { MAX_TOP_HOLDINGS, UNKNOWN_KEY } from '@ghostfolio/common/config';
 import { prettifySymbol } from '@ghostfolio/common/helper';
 import {
   AssetProfileIdentifier,
+  Holding,
   HoldingWithParents,
   PortfolioDetails,
   PortfolioPosition,
@@ -241,6 +242,24 @@ export class GfAllocationsPageComponent implements OnInit {
       }
     };
     this.holdings = {};
+    this.markets = {
+      [UNKNOWN_KEY]: {
+        id: UNKNOWN_KEY,
+        valueInPercentage: 0
+      },
+      developedMarkets: {
+        id: 'developedMarkets',
+        valueInPercentage: 0
+      },
+      emergingMarkets: {
+        id: 'emergingMarkets',
+        valueInPercentage: 0
+      },
+      otherMarkets: {
+        id: 'otherMarkets',
+        valueInPercentage: 0
+      }
+    };
     this.marketsAdvanced = {
       [UNKNOWN_KEY]: {
         id: UNKNOWN_KEY,
@@ -281,7 +300,7 @@ export class GfAllocationsPageComponent implements OnInit {
     this.platforms = {};
     this.portfolioDetails = {
       accounts: {},
-      createdAt: undefined,
+      createdAt: new Date(0),
       holdings: {},
       platforms: {},
       summary: undefined
@@ -310,7 +329,7 @@ export class GfAllocationsPageComponent implements OnInit {
       let value = 0;
 
       if (this.showValuesInPercentage()) {
-        value = valueInPercentage;
+        value = valueInPercentage ?? 0;
       } else {
         value = valueInBaseCurrency;
       }
@@ -330,7 +349,7 @@ export class GfAllocationsPageComponent implements OnInit {
       if (this.showValuesInPercentage()) {
         value = position.allocationInPercentage;
       } else {
-        value = position.valueInBaseCurrency;
+        value = position.valueInBaseCurrency ?? 0;
       }
 
       this.holdings[symbol] = {
@@ -355,52 +374,42 @@ export class GfAllocationsPageComponent implements OnInit {
           for (const country of position.countries) {
             const { code, continent, name, weight } = country;
 
+            const countryValue =
+              weight *
+              (isNumber(position.valueInBaseCurrency)
+                ? position.valueInBaseCurrency
+                : (position.valueInPercentage ?? 0));
+
             if (this.continents[continent]?.value) {
-              this.continents[continent].value +=
-                weight *
-                (isNumber(position.valueInBaseCurrency)
-                  ? position.valueInBaseCurrency
-                  : position.valueInPercentage);
+              this.continents[continent]!.value += countryValue;
             } else {
               this.continents[continent] = {
                 name: continent,
-                value:
-                  weight *
-                  (isNumber(position.valueInBaseCurrency)
-                    ? this.portfolioDetails.holdings[symbol].valueInBaseCurrency
-                    : this.portfolioDetails.holdings[symbol].valueInPercentage)
+                value: countryValue
               };
             }
 
             if (this.countries[code]?.value) {
-              this.countries[code].value +=
-                weight *
-                (isNumber(position.valueInBaseCurrency)
-                  ? position.valueInBaseCurrency
-                  : position.valueInPercentage);
+              this.countries[code]!.value += countryValue;
             } else {
               this.countries[code] = {
                 name,
-                value:
-                  weight *
-                  (isNumber(position.valueInBaseCurrency)
-                    ? this.portfolioDetails.holdings[symbol].valueInBaseCurrency
-                    : this.portfolioDetails.holdings[symbol].valueInPercentage)
+                value: countryValue
               };
             }
           }
         } else {
-          this.continents[UNKNOWN_KEY].value += isNumber(
+          this.continents[UNKNOWN_KEY]!.value += isNumber(
             position.valueInBaseCurrency
           )
-            ? this.portfolioDetails.holdings[symbol].valueInBaseCurrency
-            : this.portfolioDetails.holdings[symbol].valueInPercentage;
+            ? position.valueInBaseCurrency
+            : (position.valueInPercentage ?? 0);
 
-          this.countries[UNKNOWN_KEY].value += isNumber(
+          this.countries[UNKNOWN_KEY]!.value += isNumber(
             position.valueInBaseCurrency
           )
-            ? this.portfolioDetails.holdings[symbol].valueInBaseCurrency
-            : this.portfolioDetails.holdings[symbol].valueInPercentage;
+            ? position.valueInBaseCurrency
+            : (position.valueInPercentage ?? 0);
         }
 
         if (position.holdings.length > 0) {
@@ -416,15 +425,13 @@ export class GfAllocationsPageComponent implements OnInit {
                 valueInBaseCurrency
               )
                 ? valueInBaseCurrency
-                : allocationInPercentage *
-                  this.portfolioDetails.holdings[symbol].valueInPercentage;
+                : allocationInPercentage * (position.valueInPercentage ?? 0);
             } else {
               this.topHoldingsMap[normalizedAssetName] = {
                 name,
                 value: isNumber(valueInBaseCurrency)
                   ? valueInBaseCurrency
-                  : allocationInPercentage *
-                    this.portfolioDetails.holdings[symbol].valueInPercentage
+                  : allocationInPercentage * (position.valueInPercentage ?? 0)
               };
             }
           }
@@ -435,33 +442,33 @@ export class GfAllocationsPageComponent implements OnInit {
             const { name, weight } = sector;
 
             if (this.sectors[name]?.value) {
-              this.sectors[name].value +=
+              this.sectors[name]!.value +=
                 weight *
                 (isNumber(position.valueInBaseCurrency)
                   ? position.valueInBaseCurrency
-                  : position.valueInPercentage);
+                  : (position.valueInPercentage ?? 0));
             } else {
               this.sectors[name] = {
                 name,
                 value:
                   weight *
                   (isNumber(position.valueInBaseCurrency)
-                    ? this.portfolioDetails.holdings[symbol].valueInBaseCurrency
-                    : this.portfolioDetails.holdings[symbol].valueInPercentage)
+                    ? position.valueInBaseCurrency
+                    : (position.valueInPercentage ?? 0))
               };
             }
           }
         } else {
-          this.sectors[UNKNOWN_KEY].value += isNumber(
+          this.sectors[UNKNOWN_KEY]!.value += isNumber(
             position.valueInBaseCurrency
           )
-            ? this.portfolioDetails.holdings[symbol].valueInBaseCurrency
-            : this.portfolioDetails.holdings[symbol].valueInPercentage;
+            ? position.valueInBaseCurrency
+            : (position.valueInPercentage ?? 0);
         }
       }
 
-      if (this.holdings[symbol].assetSubClass === 'ETF') {
-        this.totalValueInEtf += this.holdings[symbol].value;
+      if (this.holdings[symbol]?.assetSubClass === 'ETF') {
+        this.totalValueInEtf += this.holdings[symbol]?.value ?? 0;
       }
 
       this.symbols[prettifySymbol(symbol)] = {
@@ -470,15 +477,17 @@ export class GfAllocationsPageComponent implements OnInit {
         symbol: prettifySymbol(symbol),
         value: isNumber(position.valueInBaseCurrency)
           ? position.valueInBaseCurrency
-          : position.valueInPercentage
+          : (position.valueInPercentage ?? 0)
       };
     }
 
-    this.markets = this.portfolioDetails.markets;
+    if (this.portfolioDetails.markets) {
+      this.markets = this.portfolioDetails.markets;
+    }
 
-    Object.values(this.portfolioDetails.marketsAdvanced).forEach(
+    Object.values(this.portfolioDetails.marketsAdvanced ?? {}).forEach(
       ({ id, valueInBaseCurrency, valueInPercentage }) => {
-        this.marketsAdvanced[id].value = isNumber(valueInBaseCurrency)
+        this.marketsAdvanced[id]!.value = isNumber(valueInBaseCurrency)
           ? valueInBaseCurrency
           : valueInPercentage;
       }
@@ -491,9 +500,9 @@ export class GfAllocationsPageComponent implements OnInit {
       let value = 0;
 
       if (this.showValuesInPercentage()) {
-        value = valueInPercentage;
+        value = valueInPercentage ?? 0;
       } else {
-        value = valueInBaseCurrency;
+        value = valueInBaseCurrency ?? 0;
       }
 
       this.platforms[id] = {
@@ -509,7 +518,7 @@ export class GfAllocationsPageComponent implements OnInit {
           return {
             name,
             allocationInPercentage: value,
-            valueInBaseCurrency: null
+            valueInBaseCurrency: 0
           };
         }
 
@@ -518,7 +527,7 @@ export class GfAllocationsPageComponent implements OnInit {
           allocationInPercentage:
             this.totalValueInEtf > 0 ? value / this.totalValueInEtf : 0,
           parents: Object.entries(this.portfolioDetails.holdings)
-            .map(([symbol, holding]) => {
+            .flatMap(([symbol, holding]): Holding[] => {
               if (holding.holdings.length > 0) {
                 const currentParentHolding = holding.holdings.find(
                   (parentHolding) => {
@@ -530,22 +539,20 @@ export class GfAllocationsPageComponent implements OnInit {
                 );
 
                 return currentParentHolding
-                  ? {
-                      allocationInPercentage:
-                        currentParentHolding.valueInBaseCurrency / value,
-                      name: holding.name,
-                      position: holding,
-                      symbol: prettifySymbol(symbol),
-                      valueInBaseCurrency:
-                        currentParentHolding.valueInBaseCurrency
-                    }
-                  : null;
+                  ? [
+                      {
+                        allocationInPercentage:
+                          currentParentHolding.valueInBaseCurrency / value,
+                        name: holding.name,
+                        symbol: prettifySymbol(symbol),
+                        valueInBaseCurrency:
+                          currentParentHolding.valueInBaseCurrency
+                      }
+                    ]
+                  : [];
               }
 
-              return null;
-            })
-            .filter((item) => {
-              return item !== null;
+              return [];
             })
             .sort((a, b) => {
               return b.allocationInPercentage - a.allocationInPercentage;
