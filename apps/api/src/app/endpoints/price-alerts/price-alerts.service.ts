@@ -40,9 +40,9 @@ export class PriceAlertsService {
         direction,
         symbol,
         thresholdPrice,
+        userId,
         webhookType,
-        webhookUrl,
-        user: { connect: { id: userId } }
+        webhookUrl
       }
     });
   }
