@@ -153,6 +153,7 @@ export class GfAdminMarketDataComponent implements AfterViewInit, OnInit {
   public defaultDateFormat: string;
   public deviceType: string;
   public displayedColumns: string[] = [];
+  public endDate: string;
   public filters$ = new Subject<Filter[]>();
   public ghostfolioScraperApiSymbolPrefix = ghostfolioScraperApiSymbolPrefix;
   public hasPermissionForSubscription: boolean;
@@ -162,6 +163,7 @@ export class GfAdminMarketDataComponent implements AfterViewInit, OnInit {
   public placeholder = '';
   public pageSize = DEFAULT_PAGE_SIZE;
   public selection: SelectionModel<Partial<SymbolProfile>>;
+  public startDate: string;
   public totalItems = 0;
   public user: User;
 
@@ -277,6 +279,27 @@ export class GfAdminMarketDataComponent implements AfterViewInit, OnInit {
     this.selection = new SelectionModel(true);
   }
 
+  public onChangeDateRange({
+    endDate,
+    startDate
+  }: {
+    endDate?: string;
+    startDate?: string;
+  }) {
+    this.startDate = startDate;
+    this.endDate = endDate;
+
+    if (this.paginator) {
+      this.paginator.pageIndex = 0;
+    }
+
+    this.loadData({
+      pageIndex: 0,
+      sortColumn: this.sort?.active,
+      sortDirection: this.sort?.direction
+    });
+  }
+
   public onChangePage(page: PageEvent) {
     this.loadData({
       pageIndex: page.pageIndex,
@@ -384,8 +407,10 @@ export class GfAdminMarketDataComponent implements AfterViewInit, OnInit {
       .fetchAdminMarketData({
         sortColumn,
         sortDirection,
+        endDate: this.endDate,
         filters: this.activeFilters,
         skip: pageIndex * this.pageSize,
+        startDate: this.startDate,
         take: this.pageSize
       })
       .pipe(takeUntilDestroyed(this.destroyRef))

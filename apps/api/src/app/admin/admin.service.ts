@@ -51,6 +51,8 @@ import { differenceInDays } from 'date-fns';
 import { StatusCodes, getReasonPhrase } from 'http-status-codes';
 import { groupBy } from 'lodash';
 
+import { buildMarketDataDateRangeWhere } from './admin.service.helper';
+
 @Injectable()
 export class AdminService {
   public constructor(
@@ -191,23 +193,43 @@ export class AdminService {
   }
 
   public async getMarketData({
+    endDate,
     filters,
     presetId,
     sortColumn,
     sortDirection = 'asc',
     skip,
+    startDate,
     take = Number.MAX_SAFE_INTEGER
   }: {
+    endDate?: string;
     filters?: Filter[];
     presetId?: MarketDataPreset;
     skip?: number;
     sortColumn?: string;
     sortDirection?: Prisma.SortOrder;
+    startDate?: string;
     take?: number;
   }): Promise<AdminMarketData> {
     let orderBy: Prisma.Enumerable<Prisma.SymbolProfileOrderByWithRelationInput> =
       [{ symbol: 'asc' }];
     const where: Prisma.SymbolProfileWhereInput = {};
+
+    const dateRangeWhere = buildMarketDataDateRangeWhere({
+      endDate,
+      startDate
+    });
+
+    if (dateRangeWhere) {
+      where.AND = [
+        ...(Array.isArray(where.AND)
+          ? where.AND
+          : where.AND
+            ? [where.AND]
+            : []),
+        dateRangeWhere
+      ];
+    }
 
     if (presetId === 'BENCHMARKS') {
       const benchmarkAssetProfiles =
@@ -224,7 +246,11 @@ export class AdminService {
       filters = [{ id: 'ETF', type: 'ASSET_SUB_CLASS' }];
 
       where.AND = [
-        ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
+        ...(Array.isArray(where.AND)
+          ? where.AND
+          : where.AND
+            ? [where.AND]
+            : []),
         {
           OR: [
             { countries: { equals: Prisma.JsonNull } },
@@ -251,7 +277,11 @@ export class AdminService {
       filters = [{ id: 'ETF', type: 'ASSET_SUB_CLASS' }];
 
       where.AND = [
-        ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
+        ...(Array.isArray(where.AND)
+          ? where.AND
+          : where.AND
+            ? [where.AND]
+            : []),
         {
           OR: [
             { sectors: { equals: Prisma.JsonNull } },
@@ -396,9 +426,7 @@ export class AdminService {
             })
           : Promise.resolve([]),
         // Batch query: replace N+1 isUsedByUsersWithSubscription check
-        this.getProfileIdsUsedBySubscribers(
-          assetProfiles.map(({ id }) => id)
-        )
+        this.getProfileIdsUsedBySubscribers(assetProfiles.map(({ id }) => id))
       ]);
 
     const lastMarketPriceMap = new Map<string, number>();
@@ -445,13 +473,11 @@ export class AdminService {
 
         if (SymbolProfileOverrides) {
           assetClass = SymbolProfileOverrides.assetClass ?? assetClass;
-          assetSubClass =
-            SymbolProfileOverrides.assetSubClass ?? assetSubClass;
+          assetSubClass = SymbolProfileOverrides.assetSubClass ?? assetSubClass;
 
           if (
-            (
-              SymbolProfileOverrides.countries as unknown as Prisma.JsonArray
-            )?.length > 0
+            (SymbolProfileOverrides.countries as unknown as Prisma.JsonArray)
+              ?.length > 0
           ) {
             countriesCount = (
               SymbolProfileOverrides.countries as unknown as Prisma.JsonArray
@@ -461,8 +487,7 @@ export class AdminService {
           name = SymbolProfileOverrides.name ?? name;
 
           if (
-            (SymbolProfileOverrides.sectors as unknown as Sector[])
-              ?.length > 0
+            (SymbolProfileOverrides.sectors as unknown as Sector[])?.length > 0
           ) {
             sectorsCount = (
               SymbolProfileOverrides.sectors as unknown as Prisma.JsonArray
