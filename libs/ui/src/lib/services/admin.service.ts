@@ -82,19 +82,27 @@ export class AdminService {
   }
 
   public fetchAdminMarketData({
+    endDate,
     filters,
     skip,
     sortColumn,
     sortDirection,
+    startDate,
     take
   }: {
+    endDate?: string;
     filters?: Filter[];
     skip?: number;
     sortColumn?: string;
     sortDirection?: SortDirection;
+    startDate?: string;
     take: number;
   }) {
     let params = this.dataService.buildFiltersAsQueryParams({ filters });
+
+    if (endDate) {
+      params = params.append('endDate', endDate);
+    }
 
     if (skip) {
       params = params.append('skip', skip);
@@ -106,6 +114,10 @@ export class AdminService {
 
     if (sortDirection) {
       params = params.append('sortDirection', sortDirection);
+    }
+
+    if (startDate) {
+      params = params.append('startDate', startDate);
     }
 
     if (take) {

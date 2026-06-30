@@ -9,6 +9,49 @@
       />
     </div>
   </div>
+  <div class="row mt-2">
+    <div class="col d-flex align-items-center gap-2">
+      <label class="mb-0" for="marketDataStartDate" i18n>From</label>
+      <input
+        class="form-control"
+        id="marketDataStartDate"
+        type="date"
+        [disabled]="isLoading"
+        [value]="startDate ?? ''"
+        (change)="
+          onChangeDateRange({
+            endDate: endDate,
+            startDate: $any($event.target).value || undefined
+          })
+        "
+      />
+      <label class="mb-0" for="marketDataEndDate" i18n>To</label>
+      <input
+        class="form-control"
+        id="marketDataEndDate"
+        type="date"
+        [disabled]="isLoading"
+        [value]="endDate ?? ''"
+        (change)="
+          onChangeDateRange({
+            endDate: $any($event.target).value || undefined,
+            startDate: startDate
+          })
+        "
+      />
+      @if (startDate || endDate) {
+        <button
+          i18n
+          mat-button
+          type="button"
+          [disabled]="isLoading"
+          (click)="onChangeDateRange({})"
+        >
+          Reset
+        </button>
+      }
+    </div>
+  </div>
   <div class="row">
     <div class="col">
       <div class="overflow-x-auto">
