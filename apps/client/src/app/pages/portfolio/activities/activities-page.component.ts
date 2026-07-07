@@ -37,6 +37,7 @@ import { addOutline } from 'ionicons/icons';
 import { DeviceDetectorService } from 'ngx-device-detector';
 import { Subscription } from 'rxjs';
 
+import { filterActivitiesBySearchQuery } from './activities-search.helper';
 import { GfCreateOrUpdateActivityDialogComponent } from './create-or-update-activity-dialog/create-or-update-activity-dialog.component';
 import { CreateOrUpdateActivityDialogParams } from './create-or-update-activity-dialog/interfaces/interfaces';
 import { GfImportActivitiesDialogComponent } from './import-activities-dialog/import-activities-dialog.component';
@@ -56,6 +57,8 @@ import { ImportActivitiesDialogParams } from './import-activities-dialog/interfa
   templateUrl: './activities-page.html'
 })
 export class GfActivitiesPageComponent implements OnInit {
+  public static readonly SERVER_SIDE_SEARCH_THRESHOLD = 1000;
+
   public activityTypesFilter: string[] = [];
   public dataSource: MatTableDataSource<Activity> | undefined;
   public deviceType: string;
@@ -157,7 +160,10 @@ export class GfActivitiesPageComponent implements OnInit {
 
     const filters: Filter[] = this.userService.getFilters();
 
-    if (this.searchQuery) {
+    const useServerSideSearch =
+      !!this.searchQuery && this.isServerSideSearchEnabled();
+
+    if (useServerSideSearch) {
       filters.push({
         id: this.searchQuery,
         type: 'SEARCH_QUERY'
@@ -171,15 +177,40 @@ export class GfActivitiesPageComponent implements OnInit {
         activityTypes: this.activityTypesFilter.length
           ? this.activityTypesFilter
           : undefined,
-        skip: this.pageIndex * this.pageSize,
+        skip: useServerSideSearch
+          ? this.pageIndex * this.pageSize
+          : this.searchQuery
+            ? 0
+            : this.pageIndex * this.pageSize,
         sortColumn: this.sortColumn,
         sortDirection: this.sortDirection,
-        take: this.pageSize
+        take:
+          !useServerSideSearch && this.searchQuery
+            ? GfActivitiesPageComponent.SERVER_SIDE_SEARCH_THRESHOLD
+            : this.pageSize
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(({ activities, count }) => {
-        this.dataSource = new MatTableDataSource(activities);
-        this.totalItems = count;
+        const filteredActivities =
+          !useServerSideSearch && this.searchQuery
+            ? filterActivitiesBySearchQuery({
+                activities,
+                searchQuery: this.searchQuery
+              })
+            : activities;
+
+        this.dataSource = new MatTableDataSource(
+          !useServerSideSearch && this.searchQuery
+            ? filteredActivities.slice(
+                this.pageIndex * this.pageSize,
+                (this.pageIndex + 1) * this.pageSize
+              )
+            : filteredActivities
+        );
+        this.totalItems =
+          !useServerSideSearch && this.searchQuery
+            ? filteredActivities.length
+            : count;
 
         if (
           this.hasPermissionToCreateActivity &&
@@ -190,6 +221,13 @@ export class GfActivitiesPageComponent implements OnInit {
 
         this.changeDetectorRef.markForCheck();
       });
+  }
+
+  private isServerSideSearchEnabled() {
+    return (
+      (this.user?.activitiesCount ?? 0) >=
+      GfActivitiesPageComponent.SERVER_SIDE_SEARCH_THRESHOLD
+    );
   }
 
   public onChangePage(page: PageEvent) {
