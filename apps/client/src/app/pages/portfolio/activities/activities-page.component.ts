@@ -37,7 +37,10 @@ import { addOutline } from 'ionicons/icons';
 import { DeviceDetectorService } from 'ngx-device-detector';
 import { Subscription } from 'rxjs';
 
-import { filterActivitiesBySearchQuery } from './activities-search.helper';
+import {
+  paginateActivitiesForClientSideSearch,
+  resolveActivitiesFetchStrategy
+} from './activities-search.helper';
 import { GfCreateOrUpdateActivityDialogComponent } from './create-or-update-activity-dialog/create-or-update-activity-dialog.component';
 import { CreateOrUpdateActivityDialogParams } from './create-or-update-activity-dialog/interfaces/interfaces';
 import { GfImportActivitiesDialogComponent } from './import-activities-dialog/import-activities-dialog.component';
@@ -160,10 +163,16 @@ export class GfActivitiesPageComponent implements OnInit {
 
     const filters: Filter[] = this.userService.getFilters();
 
-    const useServerSideSearch =
-      !!this.searchQuery && this.isServerSideSearchEnabled();
+    const fetchStrategy = resolveActivitiesFetchStrategy({
+      activitiesCount: this.user?.activitiesCount ?? 0,
+      pageIndex: this.pageIndex,
+      pageSize: this.pageSize,
+      searchQuery: this.searchQuery,
+      serverSideSearchThreshold:
+        GfActivitiesPageComponent.SERVER_SIDE_SEARCH_THRESHOLD
+    });
 
-    if (useServerSideSearch) {
+    if (fetchStrategy.useServerSideSearch) {
       filters.push({
         id: this.searchQuery,
         type: 'SEARCH_QUERY'
@@ -177,40 +186,27 @@ export class GfActivitiesPageComponent implements OnInit {
         activityTypes: this.activityTypesFilter.length
           ? this.activityTypesFilter
           : undefined,
-        skip: useServerSideSearch
-          ? this.pageIndex * this.pageSize
-          : this.searchQuery
-            ? 0
-            : this.pageIndex * this.pageSize,
+        skip: fetchStrategy.skip,
         sortColumn: this.sortColumn,
         sortDirection: this.sortDirection,
-        take:
-          !useServerSideSearch && this.searchQuery
-            ? GfActivitiesPageComponent.SERVER_SIDE_SEARCH_THRESHOLD
-            : this.pageSize
+        take: fetchStrategy.take
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(({ activities, count }) => {
-        const filteredActivities =
-          !useServerSideSearch && this.searchQuery
-            ? filterActivitiesBySearchQuery({
-                activities,
-                searchQuery: this.searchQuery
-              })
-            : activities;
+        if (fetchStrategy.applyClientSideSearch) {
+          const { items, totalItems } = paginateActivitiesForClientSideSearch({
+            activities,
+            pageIndex: this.pageIndex,
+            pageSize: this.pageSize,
+            searchQuery: this.searchQuery
+          });
 
-        this.dataSource = new MatTableDataSource(
-          !useServerSideSearch && this.searchQuery
-            ? filteredActivities.slice(
-                this.pageIndex * this.pageSize,
-                (this.pageIndex + 1) * this.pageSize
-              )
-            : filteredActivities
-        );
-        this.totalItems =
-          !useServerSideSearch && this.searchQuery
-            ? filteredActivities.length
-            : count;
+          this.dataSource = new MatTableDataSource(items);
+          this.totalItems = totalItems;
+        } else {
+          this.dataSource = new MatTableDataSource(activities);
+          this.totalItems = count;
+        }
 
         if (
           this.hasPermissionToCreateActivity &&
@@ -221,13 +217,6 @@ export class GfActivitiesPageComponent implements OnInit {
 
         this.changeDetectorRef.markForCheck();
       });
-  }
-
-  private isServerSideSearchEnabled() {
-    return (
-      (this.user?.activitiesCount ?? 0) >=
-      GfActivitiesPageComponent.SERVER_SIDE_SEARCH_THRESHOLD
-    );
   }
 
   public onChangePage(page: PageEvent) {
