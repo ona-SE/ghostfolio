@@ -92,12 +92,12 @@ export class GfUserAccountMembershipComponent {
             permissions.updateUserSettings
           );
 
-          this.coupon = this.user?.subscription?.offer?.coupon;
-          this.couponId = this.user?.subscription?.offer?.couponId;
+          this.coupon = this.user?.subscription?.offer?.coupon ?? 0;
+          this.couponId = this.user?.subscription?.offer?.couponId ?? '';
           this.durationExtension =
-            this.user?.subscription?.offer?.durationExtension;
-          this.price = this.user?.subscription?.offer?.price;
-          this.priceId = this.user?.subscription?.offer?.priceId;
+            this.user?.subscription?.offer?.durationExtension ?? '0ms';
+          this.price = this.user?.subscription?.offer?.price ?? 0;
+          this.priceId = this.user?.subscription?.offer?.priceId ?? '';
 
           this.changeDetectorRef.markForCheck();
         }
