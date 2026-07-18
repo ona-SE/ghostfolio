@@ -65,6 +65,7 @@ export abstract class PortfolioCalculator {
   protected accountBalanceItems: HistoricalDataItem[];
   protected activities: PortfolioOrder[];
 
+  private activitiesBySymbol: { [symbol: string]: PortfolioOrder[] };
   private configurationService: ConfigurationService;
   private currency: string;
   private currentRateService: CurrentRateService;
@@ -480,8 +481,10 @@ export abstract class PortfolioCalculator {
     );
 
     const accountBalanceMap: { [date: string]: Big } = {};
+    const ZERO = new Big(0);
+    const symbolKeys = Object.keys(valuesBySymbol);
 
-    let lastKnownBalance = new Big(0);
+    let lastKnownBalance = ZERO;
 
     for (const dateString of chartDates) {
       if (accountBalanceItemsMap[dateString] !== undefined) {
@@ -492,81 +495,93 @@ export abstract class PortfolioCalculator {
       // Add the most recent balance to the accountBalanceMap
       accountBalanceMap[dateString] = lastKnownBalance;
 
-      for (const symbol of Object.keys(valuesBySymbol)) {
+      // Pre-initialize the accumulator for this date once
+      if (!accumulatedValuesByDate[dateString]) {
+        accumulatedValuesByDate[dateString] = {
+          investmentValueWithCurrencyEffect: new Big(0),
+          totalAccountBalanceWithCurrencyEffect: lastKnownBalance,
+          totalCurrentValue: new Big(0),
+          totalCurrentValueWithCurrencyEffect: new Big(0),
+          totalInvestmentValue: new Big(0),
+          totalInvestmentValueWithCurrencyEffect: new Big(0),
+          totalNetPerformanceValue: new Big(0),
+          totalNetPerformanceValueWithCurrencyEffect: new Big(0),
+          totalTimeWeightedInvestmentValue: new Big(0),
+          totalTimeWeightedInvestmentValueWithCurrencyEffect: new Big(0)
+        };
+      } else {
+        accumulatedValuesByDate[dateString].totalAccountBalanceWithCurrencyEffect =
+          lastKnownBalance;
+      }
+
+      const accumulated = accumulatedValuesByDate[dateString];
+
+      for (const symbol of symbolKeys) {
         const symbolValues = valuesBySymbol[symbol];
 
         const currentValue =
-          symbolValues.currentValues?.[dateString] ?? new Big(0);
+          symbolValues.currentValues?.[dateString] ?? ZERO;
 
         const currentValueWithCurrencyEffect =
-          symbolValues.currentValuesWithCurrencyEffect?.[dateString] ??
-          new Big(0);
+          symbolValues.currentValuesWithCurrencyEffect?.[dateString] ?? ZERO;
 
         const investmentValueAccumulated =
-          symbolValues.investmentValuesAccumulated?.[dateString] ?? new Big(0);
+          symbolValues.investmentValuesAccumulated?.[dateString] ?? ZERO;
 
         const investmentValueAccumulatedWithCurrencyEffect =
           symbolValues.investmentValuesAccumulatedWithCurrencyEffect?.[
             dateString
-          ] ?? new Big(0);
+          ] ?? ZERO;
 
         const investmentValueWithCurrencyEffect =
-          symbolValues.investmentValuesWithCurrencyEffect?.[dateString] ??
-          new Big(0);
+          symbolValues.investmentValuesWithCurrencyEffect?.[dateString] ?? ZERO;
 
         const netPerformanceValue =
-          symbolValues.netPerformanceValues?.[dateString] ?? new Big(0);
+          symbolValues.netPerformanceValues?.[dateString] ?? ZERO;
 
         const netPerformanceValueWithCurrencyEffect =
           symbolValues.netPerformanceValuesWithCurrencyEffect?.[dateString] ??
-          new Big(0);
+          ZERO;
 
         const timeWeightedInvestmentValue =
-          symbolValues.timeWeightedInvestmentValues?.[dateString] ?? new Big(0);
+          symbolValues.timeWeightedInvestmentValues?.[dateString] ?? ZERO;
 
         const timeWeightedInvestmentValueWithCurrencyEffect =
           symbolValues.timeWeightedInvestmentValuesWithCurrencyEffect?.[
             dateString
-          ] ?? new Big(0);
+          ] ?? ZERO;
 
-        accumulatedValuesByDate[dateString] = {
-          investmentValueWithCurrencyEffect: (
-            accumulatedValuesByDate[dateString]
-              ?.investmentValueWithCurrencyEffect ?? new Big(0)
-          ).add(investmentValueWithCurrencyEffect),
-          totalAccountBalanceWithCurrencyEffect: accountBalanceMap[dateString],
-          totalCurrentValue: (
-            accumulatedValuesByDate[dateString]?.totalCurrentValue ?? new Big(0)
-          ).add(currentValue),
-          totalCurrentValueWithCurrencyEffect: (
-            accumulatedValuesByDate[dateString]
-              ?.totalCurrentValueWithCurrencyEffect ?? new Big(0)
-          ).add(currentValueWithCurrencyEffect),
-          totalInvestmentValue: (
-            accumulatedValuesByDate[dateString]?.totalInvestmentValue ??
-            new Big(0)
-          ).add(investmentValueAccumulated),
-          totalInvestmentValueWithCurrencyEffect: (
-            accumulatedValuesByDate[dateString]
-              ?.totalInvestmentValueWithCurrencyEffect ?? new Big(0)
-          ).add(investmentValueAccumulatedWithCurrencyEffect),
-          totalNetPerformanceValue: (
-            accumulatedValuesByDate[dateString]?.totalNetPerformanceValue ??
-            new Big(0)
-          ).add(netPerformanceValue),
-          totalNetPerformanceValueWithCurrencyEffect: (
-            accumulatedValuesByDate[dateString]
-              ?.totalNetPerformanceValueWithCurrencyEffect ?? new Big(0)
-          ).add(netPerformanceValueWithCurrencyEffect),
-          totalTimeWeightedInvestmentValue: (
-            accumulatedValuesByDate[dateString]
-              ?.totalTimeWeightedInvestmentValue ?? new Big(0)
-          ).add(timeWeightedInvestmentValue),
-          totalTimeWeightedInvestmentValueWithCurrencyEffect: (
-            accumulatedValuesByDate[dateString]
-              ?.totalTimeWeightedInvestmentValueWithCurrencyEffect ?? new Big(0)
-          ).add(timeWeightedInvestmentValueWithCurrencyEffect)
-        };
+        // Mutate in place to avoid re-creating the accumulator object
+        accumulated.investmentValueWithCurrencyEffect =
+          accumulated.investmentValueWithCurrencyEffect.add(
+            investmentValueWithCurrencyEffect
+          );
+        accumulated.totalCurrentValue =
+          accumulated.totalCurrentValue.add(currentValue);
+        accumulated.totalCurrentValueWithCurrencyEffect =
+          accumulated.totalCurrentValueWithCurrencyEffect.add(
+            currentValueWithCurrencyEffect
+          );
+        accumulated.totalInvestmentValue =
+          accumulated.totalInvestmentValue.add(investmentValueAccumulated);
+        accumulated.totalInvestmentValueWithCurrencyEffect =
+          accumulated.totalInvestmentValueWithCurrencyEffect.add(
+            investmentValueAccumulatedWithCurrencyEffect
+          );
+        accumulated.totalNetPerformanceValue =
+          accumulated.totalNetPerformanceValue.add(netPerformanceValue);
+        accumulated.totalNetPerformanceValueWithCurrencyEffect =
+          accumulated.totalNetPerformanceValueWithCurrencyEffect.add(
+            netPerformanceValueWithCurrencyEffect
+          );
+        accumulated.totalTimeWeightedInvestmentValue =
+          accumulated.totalTimeWeightedInvestmentValue.add(
+            timeWeightedInvestmentValue
+          );
+        accumulated.totalTimeWeightedInvestmentValueWithCurrencyEffect =
+          accumulated.totalTimeWeightedInvestmentValueWithCurrencyEffect.add(
+            timeWeightedInvestmentValueWithCurrencyEffect
+          );
       }
     }
 
@@ -835,6 +850,32 @@ export abstract class PortfolioCalculator {
 
   public getTransactionPoints() {
     return this.transactionPoints;
+  }
+
+  /**
+   * Returns the activities for a given symbol.
+   *
+   * The symbol-to-activities grouping is computed once and memoized. Previously
+   * each getSymbolMetrics() call filtered the full activities array, resulting
+   * in O(activities × symbols) work per snapshot. For large portfolios (500+
+   * activities across many holdings) this dominated the calculation time.
+   */
+  protected getActivitiesBySymbol(symbol: string): PortfolioOrder[] {
+    if (!this.activitiesBySymbol) {
+      this.activitiesBySymbol = {};
+
+      for (const activity of this.activities) {
+        const activitySymbol = activity.SymbolProfile.symbol;
+
+        if (!this.activitiesBySymbol[activitySymbol]) {
+          this.activitiesBySymbol[activitySymbol] = [];
+        }
+
+        this.activitiesBySymbol[activitySymbol].push(activity);
+      }
+    }
+
+    return this.activitiesBySymbol[symbol] ?? [];
   }
 
   private getChartDateMap({

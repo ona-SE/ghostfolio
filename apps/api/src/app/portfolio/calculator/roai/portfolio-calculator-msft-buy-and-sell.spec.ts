@@ -58,6 +58,7 @@ describe('PortfolioCalculator', () => {
       null,
       null,
       null,
+      null,
       null
     );
     portfolioSnapshotService = new PortfolioSnapshotService(null);

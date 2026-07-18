@@ -1,6 +1,10 @@
 import type { Access } from './access.interface';
 import type { AccountBalance } from './account-balance.interface';
-import type { Activity, ActivityError } from './activities.interface';
+import type {
+  Activity,
+  ActivityError,
+  ActivityFieldError
+} from './activities.interface';
 import type { AdminData } from './admin-data.interface';
 import type { AdminJobs } from './admin-jobs.interface';
 import type { AdminMarketDataDetails } from './admin-market-data-details.interface';
@@ -35,6 +39,7 @@ import type { PortfolioPosition } from './portfolio-position.interface';
 import type { PortfolioReportRule } from './portfolio-report-rule.interface';
 import type { PortfolioSummary } from './portfolio-summary.interface';
 import type { Product } from './product';
+import type { RecurringInvestmentPlan } from './recurring-investment-plan.interface';
 import type { AccessTokenResponse } from './responses/access-token-response.interface';
 import type { AccountBalancesResponse } from './responses/account-balances-response.interface';
 import type { AccountResponse } from './responses/account-response.interface';
@@ -68,14 +73,40 @@ import type { MarketDataDetailsResponse } from './responses/market-data-details-
 import type { MarketDataOfMarketsResponse } from './responses/market-data-of-markets-response.interface';
 import type { OAuthResponse } from './responses/oauth-response.interface';
 import type { PlatformsResponse } from './responses/platforms-response.interface';
+import type { PortfolioAllocationResponse } from './responses/portfolio-allocation-response.interface';
+import type {
+  PortfolioComparisonAccount,
+  PortfolioComparisonResponse
+} from './responses/portfolio-comparison-response.interface';
 import type { PortfolioDividendsResponse } from './responses/portfolio-dividends-response.interface';
 import type { PortfolioHoldingResponse } from './responses/portfolio-holding-response.interface';
 import type { PortfolioHoldingsResponse } from './responses/portfolio-holdings-response.interface';
 import type { PortfolioInvestmentsResponse } from './responses/portfolio-investments.interface';
 import type { PortfolioPerformanceResponse } from './responses/portfolio-performance-response.interface';
+import type {
+  PortfolioRebalancingResponse,
+  RebalancingSuggestion
+} from './responses/portfolio-rebalancing-response.interface';
 import type { PortfolioReportResponse } from './responses/portfolio-report.interface';
+import type {
+  PriceAlertItem,
+  PriceAlertsResponse
+} from './responses/price-alerts-response.interface';
 import type { PublicPortfolioResponse } from './responses/public-portfolio-response.interface';
 import type { QuotesResponse } from './responses/quotes-response.interface';
+import type { RecurringInvestmentPlansResponse } from './responses/recurring-investment-plans-response.interface';
+import type {
+  TaxCsvExportItem,
+  TaxCsvExportResponse
+} from './responses/tax-csv-export-response.interface';
+import type {
+  CostBasisMethod,
+  SimulateSellResponse,
+  TaxReportItem,
+  TaxReportResponse,
+  UnrealizedLot,
+  UnrealizedLotsResponse
+} from './responses/tax-report-response.interface';
 import type { WatchlistResponse } from './responses/watchlist-response.interface';
 import type { RuleSettings } from './rule-settings.interface';
 import type { ScraperConfiguration } from './scraper-configuration.interface';
@@ -107,6 +138,7 @@ export {
   ActivitiesResponse,
   Activity,
   ActivityError,
+  ActivityFieldError,
   ActivityResponse,
   AdminData,
   AdminJobs,
@@ -160,6 +192,9 @@ export {
   OAuthResponse,
   PlatformsResponse,
   PortfolioChart,
+  PortfolioAllocationResponse,
+  PortfolioComparisonAccount,
+  PortfolioComparisonResponse,
   PortfolioDetails,
   PortfolioDividendsResponse,
   PortfolioHoldingResponse,
@@ -168,14 +203,20 @@ export {
   PortfolioPerformance,
   PortfolioPerformanceResponse,
   PortfolioPosition,
+  PortfolioRebalancingResponse,
   PortfolioReportResponse,
+  RebalancingSuggestion,
   PortfolioReportRule,
   PortfolioSummary,
+  PriceAlertItem,
+  PriceAlertsResponse,
   Product,
   PublicKeyCredentialCreationOptionsJSON,
   PublicKeyCredentialRequestOptionsJSON,
   PublicPortfolioResponse,
   QuotesResponse,
+  RecurringInvestmentPlan,
+  RecurringInvestmentPlansResponse,
   ResponseError,
   RuleSettings,
   ScraperConfiguration,
@@ -185,6 +226,14 @@ export {
   SymbolMetrics,
   SystemMessage,
   TabConfiguration,
+  CostBasisMethod,
+  SimulateSellResponse,
+  TaxCsvExportItem,
+  TaxCsvExportResponse,
+  TaxReportItem,
+  TaxReportResponse,
+  UnrealizedLot,
+  UnrealizedLotsResponse,
   ToggleOption,
   User,
   UserItem,

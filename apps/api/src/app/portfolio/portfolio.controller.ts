@@ -19,12 +19,15 @@ import {
 } from '@ghostfolio/common/config';
 import { SubscriptionType } from '@ghostfolio/common/enums';
 import {
+  PortfolioAllocationResponse,
+  PortfolioComparisonResponse,
   PortfolioDetails,
   PortfolioDividendsResponse,
   PortfolioHoldingResponse,
   PortfolioHoldingsResponse,
   PortfolioInvestmentsResponse,
   PortfolioPerformanceResponse,
+  PortfolioRebalancingResponse,
   PortfolioReportResponse
 } from '@ghostfolio/common/interfaces';
 import {
@@ -46,6 +49,7 @@ import {
   HttpException,
   Inject,
   Param,
+  Post,
   Put,
   Query,
   UseGuards,
@@ -59,6 +63,8 @@ import { Big } from 'big.js';
 import { StatusCodes, getReasonPhrase } from 'http-status-codes';
 
 import { PortfolioService } from './portfolio.service';
+import { RebalancingService } from './rebalancing.service';
+import { SetTargetAllocationsDto } from './set-target-allocations.dto';
 import { UpdateHoldingTagsDto } from './update-holding-tags.dto';
 
 @Controller('portfolio')
@@ -69,8 +75,58 @@ export class PortfolioController {
     private readonly configurationService: ConfigurationService,
     private readonly impersonationService: ImpersonationService,
     private readonly portfolioService: PortfolioService,
+    private readonly rebalancingService: RebalancingService,
     @Inject(REQUEST) private readonly request: RequestWithUser
   ) {}
+
+  @Get('allocation')
+  @UseGuards(AuthGuard('jwt'), HasPermissionGuard)
+  @UseInterceptors(TransformDataSourceInRequestInterceptor)
+  @Version('2')
+  public async getAllocation(
+    @Headers(HEADER_KEY_IMPERSONATION.toLowerCase()) impersonationId: string,
+    @Query('accounts') filterByAccounts?: string,
+    @Query('assetClasses') filterByAssetClasses?: string,
+    @Query('tags') filterByTags?: string
+  ): Promise<PortfolioAllocationResponse> {
+    const filters = this.apiService.buildFiltersFromQueryParams({
+      filterByAccounts,
+      filterByAssetClasses,
+      filterByTags
+    });
+
+    return this.portfolioService.getAllocation({
+      filters,
+      impersonationId,
+      userId: this.request.user.id
+    });
+  }
+
+  @Get('comparison')
+  @UseGuards(AuthGuard('jwt'), HasPermissionGuard)
+  @UseInterceptors(PerformanceLoggingInterceptor)
+  @UseInterceptors(TransformDataSourceInResponseInterceptor)
+  public async getComparison(
+    @Headers(HEADER_KEY_IMPERSONATION.toLowerCase()) impersonationId: string,
+    @Query('accounts') accountIds: string,
+    @Query('range') dateRange: DateRange = 'max'
+  ): Promise<PortfolioComparisonResponse> {
+    const ids = accountIds?.split(',').filter(Boolean) ?? [];
+
+    if (ids.length < 2) {
+      throw new HttpException(
+        getReasonPhrase(StatusCodes.BAD_REQUEST),
+        StatusCodes.BAD_REQUEST
+      );
+    }
+
+    return this.portfolioService.getComparison({
+      dateRange,
+      impersonationId,
+      accountIds: ids,
+      userId: this.request.user.id
+    });
+  }
 
   @Get('details')
   @UseGuards(AuthGuard('jwt'), HasPermissionGuard)
@@ -639,6 +695,41 @@ export class PortfolioController {
     }
 
     return report;
+  }
+
+  @Get('rebalancing')
+  @UseGuards(AuthGuard('jwt'), HasPermissionGuard)
+  public async getRebalancing(
+    @Headers(HEADER_KEY_IMPERSONATION.toLowerCase()) impersonationId: string
+  ): Promise<PortfolioRebalancingResponse> {
+    return this.rebalancingService.getRebalancingSuggestions({
+      impersonationId,
+      userId: this.request.user.id
+    });
+  }
+
+  @Get('rebalancing/targets')
+  @UseGuards(AuthGuard('jwt'), HasPermissionGuard)
+  public async getTargetAllocations() {
+    return this.rebalancingService.getTargetAllocations({
+      userId: this.request.user.id
+    });
+  }
+
+  @HasPermission(permissions.updateUserSettings)
+  @Post('rebalancing/targets')
+  @UseGuards(AuthGuard('jwt'), HasPermissionGuard)
+  public async setTargetAllocations(
+    @Body() data: SetTargetAllocationsDto
+  ): Promise<void> {
+    try {
+      await this.rebalancingService.setTargetAllocations({
+        allocations: data.allocations,
+        userId: this.request.user.id
+      });
+    } catch (error) {
+      throw new HttpException(error.message, StatusCodes.BAD_REQUEST);
+    }
   }
 
   @HasPermission(permissions.updateActivity)

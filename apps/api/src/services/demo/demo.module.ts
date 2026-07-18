@@ -1,4 +1,4 @@
-import { PrismaModule } from '@ghostfolio/api/services/prisma/prisma.module';
+import { OrderRepositoryModule } from '@ghostfolio/api/services/order-repository/order-repository.module';
 import { PropertyModule } from '@ghostfolio/api/services/property/property.module';
 
 import { Module } from '@nestjs/common';
@@ -7,7 +7,7 @@ import { DemoService } from './demo.service';
 
 @Module({
   exports: [DemoService],
-  imports: [PrismaModule, PropertyModule],
+  imports: [OrderRepositoryModule, PropertyModule],
   providers: [DemoService]
 })
 export class DemoModule {}

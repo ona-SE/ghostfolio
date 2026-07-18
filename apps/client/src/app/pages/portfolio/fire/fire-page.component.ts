@@ -43,15 +43,15 @@ import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 })
 export class GfFirePageComponent implements OnInit {
   public deviceType: string;
-  public fireWealth: FireWealth;
+  public fireWealth: FireWealth | undefined;
   public hasImpersonationId: boolean;
   public hasPermissionToUpdateUserSettings: boolean;
   public isLoading = false;
-  public projectedTotalAmount: number;
-  public retirementDate: Date;
+  public projectedTotalAmount: number | undefined;
+  public retirementDate: Date | undefined;
   public safeWithdrawalRateControl = new FormControl<number | null>(null);
   public safeWithdrawalRateOptions = [0.025, 0.03, 0.035, 0.04, 0.045];
-  public user: User;
+  public user: User | undefined;
   public withdrawalRatePerMonth: Big;
   public withdrawalRatePerMonthProjected: Big;
   public withdrawalRatePerYear: Big;
@@ -81,7 +81,7 @@ export class GfFirePageComponent implements OnInit {
               : 0
           }
         };
-        if (this.user.subscription?.type === SubscriptionType.Basic) {
+        if (this.user?.subscription?.type === SubscriptionType.Basic) {
           this.fireWealth = {
             today: {
               valueInBaseCurrency: 10000

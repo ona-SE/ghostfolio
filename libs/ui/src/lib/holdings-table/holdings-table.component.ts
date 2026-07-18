@@ -74,6 +74,7 @@ export class GfHoldingsTableComponent {
 
     if (this.hasPermissionToShowValues()) {
       columns.push('performance');
+      columns.push('currencyGain');
     }
 
     columns.push('performanceInPercentage');

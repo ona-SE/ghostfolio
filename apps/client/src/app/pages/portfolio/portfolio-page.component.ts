@@ -15,7 +15,11 @@ import { addIcons } from 'ionicons';
 import {
   analyticsOutline,
   calculatorOutline,
+  documentTextOutline,
+  gitCompareOutline,
+  optionsOutline,
   pieChartOutline,
+  repeatOutline,
   scanOutline,
   swapVerticalOutline
 } from 'ionicons/icons';
@@ -62,9 +66,33 @@ export class PortfolioPageComponent implements OnInit {
                 internalRoutes.portfolio.subRoutes.allocations.routerLink
             },
             {
+              iconName: 'git-compare-outline',
+              label: internalRoutes.portfolio.subRoutes.comparison.title,
+              routerLink:
+                internalRoutes.portfolio.subRoutes.comparison.routerLink
+            },
+            {
+              iconName: 'repeat-outline',
+              label: internalRoutes.portfolio.subRoutes.dca.title,
+              routerLink: internalRoutes.portfolio.subRoutes.dca.routerLink
+            },
+            {
               iconName: 'calculator-outline',
               label: internalRoutes.portfolio.subRoutes.fire.title,
               routerLink: internalRoutes.portfolio.subRoutes.fire.routerLink
+            },
+            {
+              iconName: 'options-outline',
+              label: internalRoutes.portfolio.subRoutes.rebalancing.title,
+              routerLink:
+                internalRoutes.portfolio.subRoutes.rebalancing.routerLink
+            },
+            {
+              iconName: 'document-text-outline',
+              label: internalRoutes.portfolio.subRoutes.tax.title,
+              routerLink: internalRoutes.portfolio.subRoutes.tax.routerLink,
+              showCondition:
+                state.user?.settings?.isExperimentalFeatures === true
             },
             {
               iconName: 'scan-outline',
@@ -81,7 +109,11 @@ export class PortfolioPageComponent implements OnInit {
     addIcons({
       analyticsOutline,
       calculatorOutline,
+      documentTextOutline,
+      gitCompareOutline,
+      optionsOutline,
       pieChartOutline,
+      repeatOutline,
       scanOutline,
       swapVerticalOutline
     });

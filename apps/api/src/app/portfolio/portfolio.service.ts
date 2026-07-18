@@ -28,7 +28,11 @@ import { ImpersonationService } from '@ghostfolio/api/services/impersonation/imp
 import { SymbolProfileService } from '@ghostfolio/api/services/symbol-profile/symbol-profile.service';
 import {
   getAnnualizedPerformancePercent,
-  getIntervalFromDateRange
+  getDailyReturns,
+  getHoldingOverlap,
+  getIntervalFromDateRange,
+  getSharpeRatio,
+  getVolatility
 } from '@ghostfolio/common/calculation-helper';
 import {
   DEFAULT_CURRENCY,
@@ -44,6 +48,9 @@ import {
   Filter,
   HistoricalDataItem,
   InvestmentItem,
+  PortfolioAllocationResponse,
+  PortfolioComparisonAccount,
+  PortfolioComparisonResponse,
   PortfolioDetails,
   PortfolioHoldingResponse,
   PortfolioInvestmentsResponse,
@@ -75,6 +82,7 @@ import {
   Order,
   Platform,
   Prisma,
+  SymbolProfile,
   Tag
 } from '@prisma/client';
 import { Big } from 'big.js';
@@ -181,6 +189,7 @@ export class PortfolioService {
       accounts.map(async (account) => {
         let activitiesCount = 0;
         let dividendInBaseCurrency = 0;
+        let dripDividendInBaseCurrency = 0;
         let interestInBaseCurrency = 0;
 
         for (const {
@@ -218,6 +227,17 @@ export class PortfolioService {
           }
         }
 
+        // Compute DRIP-linked dividends for accounts with isDrip enabled.
+        // A dividend is considered reinvested when a BUY order for the same
+        // symbol follows the dividend within the same account.
+        if (account.isDrip) {
+          dripDividendInBaseCurrency =
+            await this.computeDripDividendInBaseCurrency(
+              account.activities,
+              userCurrency
+            );
+        }
+
         const valueInBaseCurrency =
           details.accounts[account.id]?.valueInBaseCurrency ?? 0;
 
@@ -225,6 +245,7 @@ export class PortfolioService {
           ...account,
           activitiesCount,
           dividendInBaseCurrency,
+          dripDividendInBaseCurrency,
           interestInBaseCurrency,
           valueInBaseCurrency,
           allocationInPercentage: 0,
@@ -281,6 +302,7 @@ export class PortfolioService {
 
     let totalBalanceInBaseCurrency = new Big(0);
     let totalDividendInBaseCurrency = new Big(0);
+    let totalDripDividendInBaseCurrency = new Big(0);
     let totalInterestInBaseCurrency = new Big(0);
     let totalValueInBaseCurrency = new Big(0);
 
@@ -292,6 +314,9 @@ export class PortfolioService {
       );
       totalDividendInBaseCurrency = totalDividendInBaseCurrency.plus(
         account.dividendInBaseCurrency
+      );
+      totalDripDividendInBaseCurrency = totalDripDividendInBaseCurrency.plus(
+        account.dripDividendInBaseCurrency
       );
       totalInterestInBaseCurrency = totalInterestInBaseCurrency.plus(
         account.interestInBaseCurrency
@@ -315,9 +340,137 @@ export class PortfolioService {
       activitiesCount,
       totalBalanceInBaseCurrency: totalBalanceInBaseCurrency.toNumber(),
       totalDividendInBaseCurrency: totalDividendInBaseCurrency.toNumber(),
+      totalDripDividendInBaseCurrency:
+        totalDripDividendInBaseCurrency.toNumber(),
       totalInterestInBaseCurrency: totalInterestInBaseCurrency.toNumber(),
       totalValueInBaseCurrency: totalValueInBaseCurrency.toNumber()
     };
+  }
+
+  public async getAllocation({
+    filters,
+    impersonationId,
+    userId
+  }: {
+    filters?: Filter[];
+    impersonationId: string;
+    userId: string;
+  }): Promise<PortfolioAllocationResponse> {
+    const { holdings } = await this.getDetails({
+      filters,
+      impersonationId,
+      userId,
+      withMarkets: true
+    });
+
+    const byAssetClass: PortfolioAllocationResponse['byAssetClass'] = {};
+    const bySector: PortfolioAllocationResponse['bySector'] = {};
+    const byGeography: PortfolioAllocationResponse['byGeography'] = {};
+
+    let totalValue = 0;
+
+    for (const [, position] of Object.entries(holdings)) {
+      if (position.assetClass === AssetClass.LIQUIDITY) {
+        continue;
+      }
+
+      const value = position.valueInBaseCurrency ?? 0;
+      totalValue += value;
+    }
+
+    if (totalValue === 0) {
+      return { byAssetClass, bySector, byGeography };
+    }
+
+    for (const [, position] of Object.entries(holdings)) {
+      if (position.assetClass === AssetClass.LIQUIDITY) {
+        continue;
+      }
+
+      const value = position.valueInBaseCurrency ?? 0;
+
+      // Aggregate by asset class
+      const assetClassName = position.assetClass ?? UNKNOWN_KEY;
+
+      if (!byAssetClass[assetClassName]) {
+        byAssetClass[assetClassName] = {
+          name: assetClassName,
+          allocationInPercentage: 0,
+          valueInBaseCurrency: 0
+        };
+      }
+
+      byAssetClass[assetClassName].valueInBaseCurrency += value;
+
+      // Aggregate by sector (weighted by sector weight per holding)
+      if (position.sectors?.length > 0) {
+        for (const sector of position.sectors) {
+          const sectorName = sector.name || UNKNOWN_KEY;
+
+          if (!bySector[sectorName]) {
+            bySector[sectorName] = {
+              name: sectorName,
+              allocationInPercentage: 0,
+              valueInBaseCurrency: 0
+            };
+          }
+
+          bySector[sectorName].valueInBaseCurrency += value * sector.weight;
+        }
+      } else {
+        if (!bySector[UNKNOWN_KEY]) {
+          bySector[UNKNOWN_KEY] = {
+            name: UNKNOWN_KEY,
+            allocationInPercentage: 0,
+            valueInBaseCurrency: 0
+          };
+        }
+
+        bySector[UNKNOWN_KEY].valueInBaseCurrency += value;
+      }
+
+      // Aggregate by geography (weighted by country weight per holding)
+      if (position.countries?.length > 0) {
+        for (const country of position.countries) {
+          const code = country.code || UNKNOWN_KEY;
+
+          if (!byGeography[code]) {
+            byGeography[code] = {
+              name: country.name || code,
+              allocationInPercentage: 0,
+              valueInBaseCurrency: 0
+            };
+          }
+
+          byGeography[code].valueInBaseCurrency += value * country.weight;
+        }
+      } else {
+        if (!byGeography[UNKNOWN_KEY]) {
+          byGeography[UNKNOWN_KEY] = {
+            name: UNKNOWN_KEY,
+            allocationInPercentage: 0,
+            valueInBaseCurrency: 0
+          };
+        }
+
+        byGeography[UNKNOWN_KEY].valueInBaseCurrency += value;
+      }
+    }
+
+    // Compute percentages
+    for (const entry of Object.values(byAssetClass)) {
+      entry.allocationInPercentage = entry.valueInBaseCurrency / totalValue;
+    }
+
+    for (const entry of Object.values(bySector)) {
+      entry.allocationInPercentage = entry.valueInBaseCurrency / totalValue;
+    }
+
+    for (const entry of Object.values(byGeography)) {
+      entry.allocationInPercentage = entry.valueInBaseCurrency / totalValue;
+    }
+
+    return { byAssetClass, bySector, byGeography };
   }
 
   public getDividends({
@@ -504,8 +657,14 @@ export class PortfolioService {
       currency: userCurrency
     });
 
-    const { createdAt, currentValueInBaseCurrency, hasErrors, positions } =
-      await portfolioCalculator.getSnapshot();
+    const {
+      createdAt,
+      currentValueInBaseCurrency,
+      hasErrors,
+      positions,
+      totalInvestment,
+      totalInvestmentWithCurrencyEffect
+    } = await portfolioCalculator.getSnapshot();
 
     const cashDetails = await this.accountService.getCashDetails({
       filters,
@@ -679,6 +838,9 @@ export class PortfolioService {
           netPerformanceWithCurrencyEffectMap?.[dateRange]?.toNumber() ?? 0,
         quantity: quantity.toNumber(),
         sectors: assetProfile.sectors,
+        unrealizedCurrencyGainInBaseCurrency:
+          (netPerformanceWithCurrencyEffectMap?.[dateRange]?.toNumber() ?? 0) -
+          (netPerformance?.toNumber() ?? 0),
         url: assetProfile.url,
         valueInBaseCurrency: valueInBaseCurrency.toNumber(),
         valueInPercentage: totalValueInBaseCurrency.eq(0)
@@ -741,17 +903,38 @@ export class PortfolioService {
     let summary: PortfolioSummary;
 
     if (withSummary) {
+      const { endDate, startDate } = getIntervalFromDateRange({
+        dateRange: 'max'
+      });
+
+      const { chart } = await portfolioCalculator.getPerformance({
+        end: endDate,
+        start: startDate
+      });
+
+      const lastChartEntry = chart?.at(-1);
+
       summary = await this.getSummary({
+        currentValueInBaseCurrency,
         filteredValueInBaseCurrency,
         impersonationId,
         portfolioCalculator,
+        totalInvestment,
+        totalInvestmentWithCurrencyEffect,
         userCurrency,
         userId,
         balanceInBaseCurrency: cashDetails.balanceInBaseCurrency,
         emergencyFundHoldingsValueInBaseCurrency:
           this.getEmergencyFundHoldingsValueInBaseCurrency({
             holdings
-          })
+          }),
+        netPerformance: lastChartEntry?.netPerformance ?? 0,
+        netPerformancePercentage:
+          lastChartEntry?.netPerformanceInPercentage ?? 0,
+        netPerformancePercentageWithCurrencyEffect:
+          lastChartEntry?.netPerformanceInPercentageWithCurrencyEffect ?? 0,
+        netPerformanceWithCurrencyEffect:
+          lastChartEntry?.netPerformanceWithCurrencyEffect ?? 0
       });
     }
 
@@ -983,6 +1166,9 @@ export class PortfolioService {
         }
       },
       quantity: quantity.toNumber(),
+      unrealizedCurrencyGainInBaseCurrency:
+        (netPerformanceWithCurrencyEffectMap?.['max']?.toNumber() ?? 0) -
+        (netPerformance?.toNumber() ?? 0),
       value: this.exchangeRateDataService.toCurrency(
         quantity.mul(marketPrice ?? 0).toNumber(),
         currency,
@@ -1033,7 +1219,8 @@ export class PortfolioService {
           netPerformancePercentageWithCurrencyEffect: 0,
           netPerformanceWithCurrencyEffect: 0,
           totalInvestment: 0,
-          totalInvestmentValueWithCurrencyEffect: 0
+          totalInvestmentValueWithCurrencyEffect: 0,
+          unrealizedCurrencyGainInBaseCurrency: 0
         }
       };
     }
@@ -1090,8 +1277,156 @@ export class PortfolioService {
         currentValueInBaseCurrency: valueWithCurrencyEffect,
         netPerformancePercentage: netPerformanceInPercentage,
         netPerformancePercentageWithCurrencyEffect:
-          netPerformanceInPercentageWithCurrencyEffect
+          netPerformanceInPercentageWithCurrencyEffect,
+        unrealizedCurrencyGainInBaseCurrency:
+          netPerformanceWithCurrencyEffect - netPerformance
       }
+    };
+  }
+
+  public async getComparison({
+    accountIds,
+    dateRange = 'max',
+    impersonationId,
+    userId
+  }: {
+    accountIds: string[];
+    dateRange?: DateRange;
+    impersonationId: string;
+    userId: string;
+  }): Promise<PortfolioComparisonResponse> {
+    userId = await this.getUserId(impersonationId, userId);
+    const user = await this.userService.user({ id: userId });
+    const userCurrency = this.getUserCurrency(user);
+
+    const accountResults: PortfolioComparisonAccount[] = [];
+
+    // Compute performance for each account in parallel
+    const accountPerformances = await Promise.all(
+      accountIds.map(async (accountId) => {
+        const filters: Filter[] = [{ id: accountId, type: 'ACCOUNT' }];
+
+        const [accountBalanceItems, { activities }] = await Promise.all([
+          this.accountBalanceService.getAccountBalanceItems({
+            filters,
+            userId,
+            userCurrency
+          }),
+          this.activitiesService.getActivitiesForPortfolioCalculator({
+            filters,
+            userCurrency,
+            userId
+          })
+        ]);
+
+        // Look up the account name
+        const account = await this.accountService.account({
+          id_userId: { id: accountId, userId }
+        });
+
+        const accountName = account?.name ?? accountId;
+
+        if (accountBalanceItems.length === 0 && activities.length === 0) {
+          return {
+            accountId,
+            accountName,
+            chart: [],
+            metrics: {
+              annualizedReturn: 0,
+              currentValue: 0,
+              netPerformance: 0,
+              netPerformancePercentage: 0,
+              sharpeRatio: 0,
+              totalInvestment: 0,
+              volatility: 0
+            },
+            symbols: []
+          } as PortfolioComparisonAccount;
+        }
+
+        const portfolioCalculator = this.calculatorFactory.createCalculator({
+          accountBalanceItems,
+          activities,
+          filters,
+          userId,
+          calculationType: this.getUserPerformanceCalculationType(user),
+          currency: userCurrency
+        });
+
+        await portfolioCalculator.getSnapshot();
+
+        const { endDate, startDate } = getIntervalFromDateRange({ dateRange });
+
+        const { chart } = await portfolioCalculator.getPerformance({
+          end: endDate,
+          start: startDate
+        });
+
+        const lastItem = chart?.at(-1);
+        const netPerformance = lastItem?.netPerformance ?? 0;
+        const netPerformancePercentage =
+          lastItem?.netPerformanceInPercentage ?? 0;
+        const totalInvestment = lastItem?.totalInvestment ?? 0;
+        const currentValue = lastItem?.valueWithCurrencyEffect ?? 0;
+
+        // Compute risk metrics from the chart data
+        const dailyReturns = getDailyReturns(chart ?? []);
+        const volatility = getVolatility(dailyReturns);
+
+        const daysInMarket = chart?.length ?? 0;
+        const annualizedReturn = getAnnualizedPerformancePercent({
+          daysInMarket,
+          netPerformancePercentage: new Big(netPerformancePercentage)
+        }).toNumber();
+
+        const sharpeRatio = getSharpeRatio({
+          annualizedReturn,
+          volatility
+        });
+
+        // Extract unique symbols held in this account
+        const symbols = [
+          ...new Set(
+            activities
+              .filter((a) => a.SymbolProfile?.symbol)
+              .map((a) => a.SymbolProfile.symbol)
+          )
+        ];
+
+        return {
+          accountId,
+          accountName,
+          chart: chart ?? [],
+          metrics: {
+            annualizedReturn,
+            currentValue,
+            netPerformance,
+            netPerformancePercentage,
+            sharpeRatio,
+            totalInvestment,
+            volatility
+          },
+          symbols
+        } as PortfolioComparisonAccount;
+      })
+    );
+
+    for (const result of accountPerformances) {
+      accountResults.push(result);
+    }
+
+    // Compute holding overlap across accounts
+    const holdingOverlap = getHoldingOverlap(
+      accountResults.map(({ accountId, symbols }) => ({
+        accountId,
+        symbols
+      }))
+    );
+
+    return {
+      accounts: accountResults,
+      hasErrors: false,
+      holdingOverlap
     };
   }
 
@@ -1608,6 +1943,99 @@ export class PortfolioService {
     });
   }
 
+  /**
+   * For DRIP-enabled accounts, computes the portion of dividends that were
+   * reinvested. A dividend is considered reinvested when a BUY order for the
+   * same symbol exists on or after the dividend date. The reinvested amount
+   * is capped at the lesser of the dividend value and the buy order value.
+   */
+  private async computeDripDividendInBaseCurrency(
+    activities: (Order & { SymbolProfile?: SymbolProfile })[],
+    userCurrency: string
+  ): Promise<number> {
+    // Sort activities by date ascending
+    const sorted = [...activities].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    // Group dividends and buys by symbol
+    const dividendsBySymbol = new Map<
+      string,
+      (Order & { SymbolProfile?: SymbolProfile })[]
+    >();
+    const buysBySymbol = new Map<
+      string,
+      (Order & { SymbolProfile?: SymbolProfile })[]
+    >();
+
+    for (const activity of sorted) {
+      const symbol = activity.SymbolProfile?.symbol;
+
+      if (!symbol) {
+        continue;
+      }
+
+      if (activity.type === 'DIVIDEND') {
+        if (!dividendsBySymbol.has(symbol)) {
+          dividendsBySymbol.set(symbol, []);
+        }
+
+        dividendsBySymbol.get(symbol).push(activity);
+      } else if (activity.type === 'BUY') {
+        if (!buysBySymbol.has(symbol)) {
+          buysBySymbol.set(symbol, []);
+        }
+
+        buysBySymbol.get(symbol).push(activity);
+      }
+    }
+
+    let totalDripInBaseCurrency = 0;
+
+    for (const [symbol, dividends] of dividendsBySymbol) {
+      const buys = buysBySymbol.get(symbol) ?? [];
+      let buyIndex = 0;
+
+      for (const dividend of dividends) {
+        const dividendValue = new Big(dividend.quantity).mul(
+          dividend.unitPrice
+        );
+        const dividendDate = new Date(dividend.date).getTime();
+
+        // Find the next buy on or after the dividend date
+        while (
+          buyIndex < buys.length &&
+          new Date(buys[buyIndex].date).getTime() < dividendDate
+        ) {
+          buyIndex++;
+        }
+
+        if (buyIndex < buys.length) {
+          const buy = buys[buyIndex];
+          const buyValue = new Big(buy.quantity).mul(buy.unitPrice);
+
+          // Reinvested amount is the lesser of dividend and buy values
+          const reinvestedAmount = dividendValue.lt(buyValue)
+            ? dividendValue
+            : buyValue;
+
+          const reinvestedInBaseCurrency =
+            await this.exchangeRateDataService.toCurrencyAtDate(
+              reinvestedAmount.toNumber(),
+              dividend.currency ?? dividend.SymbolProfile?.currency,
+              userCurrency,
+              dividend.date
+            );
+
+          totalDripInBaseCurrency += reinvestedInBaseCurrency;
+          buyIndex++;
+        }
+      }
+    }
+
+    return totalDripInBaseCurrency;
+  }
+
   private getDividendsByGroup({
     dividends,
     groupBy
@@ -1870,18 +2298,32 @@ export class PortfolioService {
 
   private async getSummary({
     balanceInBaseCurrency,
+    currentValueInBaseCurrency,
     emergencyFundHoldingsValueInBaseCurrency,
     filteredValueInBaseCurrency,
     impersonationId,
+    netPerformance,
+    netPerformancePercentage,
+    netPerformancePercentageWithCurrencyEffect,
+    netPerformanceWithCurrencyEffect,
     portfolioCalculator,
+    totalInvestment,
+    totalInvestmentWithCurrencyEffect,
     userCurrency,
     userId
   }: {
     balanceInBaseCurrency: number;
+    currentValueInBaseCurrency: Big;
     emergencyFundHoldingsValueInBaseCurrency: number;
     filteredValueInBaseCurrency: Big;
     impersonationId: string;
+    netPerformance: number;
+    netPerformancePercentage: number;
+    netPerformancePercentageWithCurrencyEffect: number;
+    netPerformanceWithCurrencyEffect: number;
     portfolioCalculator: PortfolioCalculator;
+    totalInvestment: Big;
+    totalInvestmentWithCurrencyEffect: Big;
     userCurrency: string;
     userId: string;
   }): Promise<PortfolioSummary> {
@@ -1909,24 +2351,6 @@ export class PortfolioService {
         nonExcludedActivities.push(activity);
       }
     }
-
-    const {
-      currentValueInBaseCurrency,
-      totalInvestment,
-      totalInvestmentWithCurrencyEffect
-    } = await portfolioCalculator.getSnapshot();
-
-    const { performance } = await this.getPerformance({
-      impersonationId,
-      userId
-    });
-
-    const {
-      netPerformance,
-      netPerformancePercentage,
-      netPerformancePercentageWithCurrencyEffect,
-      netPerformanceWithCurrencyEffect
-    } = performance;
 
     const totalEmergencyFund = this.getTotalEmergencyFund({
       emergencyFundHoldingsValueInBaseCurrency,
@@ -2056,7 +2480,9 @@ export class PortfolioService {
       totalInvestment: totalInvestment.toNumber(),
       totalInvestmentValueWithCurrencyEffect:
         totalInvestmentWithCurrencyEffect.toNumber(),
-      totalValueInBaseCurrency: netWorth
+      totalValueInBaseCurrency: netWorth,
+      unrealizedCurrencyGainInBaseCurrency:
+        netPerformanceWithCurrencyEffect - netPerformance
     };
   }
 

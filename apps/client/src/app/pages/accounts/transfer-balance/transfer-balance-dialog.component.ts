@@ -41,7 +41,7 @@ import { TransferBalanceDialogParams } from './interfaces/interfaces';
 })
 export class GfTransferBalanceDialogComponent {
   public accounts: Account[] = [];
-  public currency: string;
+  public currency: string | null | undefined;
   public transferBalanceForm: FormGroup;
 
   public constructor(
@@ -64,11 +64,13 @@ export class GfTransferBalanceDialogComponent {
       }
     );
 
-    this.transferBalanceForm.get('fromAccount')?.valueChanges.subscribe((id) => {
-      this.currency = this.accounts.find((account) => {
-        return account.id === id;
-      })?.currency ?? '';
-    });
+    this.transferBalanceForm
+      .get('fromAccount')
+      ?.valueChanges.subscribe((id) => {
+        this.currency = this.accounts.find((account) => {
+          return account.id === id;
+        })?.currency;
+      });
   }
 
   public onCancel() {

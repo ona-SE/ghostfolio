@@ -137,10 +137,30 @@ export const internalRoutes = {
         routerLink: ['/portfolio'],
         title: $localize`Analysis`
       },
+      comparison: {
+        path: 'comparison',
+        routerLink: ['/portfolio', 'comparison'],
+        title: $localize`Comparison`
+      },
+      dca: {
+        path: 'dca',
+        routerLink: ['/portfolio', 'dca'],
+        title: $localize`DCA Plans`
+      },
       fire: {
         path: 'fire',
         routerLink: ['/portfolio', 'fire'],
         title: 'FIRE'
+      },
+      rebalancing: {
+        path: 'rebalancing',
+        routerLink: ['/portfolio', 'rebalancing'],
+        title: $localize`Rebalancing`
+      },
+      tax: {
+        path: 'tax',
+        routerLink: ['/portfolio', 'tax'],
+        title: $localize`Tax Report`
       },
       xRay: {
         path: 'x-ray',

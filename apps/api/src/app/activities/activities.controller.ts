@@ -12,7 +12,11 @@ import {
   DATA_GATHERING_QUEUE_PRIORITY_HIGH,
   HEADER_KEY_IMPERSONATION
 } from '@ghostfolio/common/config';
-import { CreateOrderDto, UpdateOrderDto } from '@ghostfolio/common/dtos';
+import {
+  BulkUpdateActivitiesTagsDto,
+  CreateOrderDto,
+  UpdateOrderDto
+} from '@ghostfolio/common/dtos';
 import {
   ActivitiesResponse,
   ActivityResponse
@@ -29,6 +33,7 @@ import {
   HttpException,
   Inject,
   Param,
+  Patch,
   Post,
   Put,
   Query,
@@ -104,6 +109,29 @@ export class ActivitiesController {
     });
   }
 
+  @HasPermission(permissions.updateActivity)
+  @Patch('tags')
+  @UseGuards(AuthGuard('jwt'), HasPermissionGuard)
+  public async bulkUpdateTags(
+    @Body() data: BulkUpdateActivitiesTagsDto
+  ): Promise<{ updated: number }> {
+    try {
+      const updated = await this.activitiesService.bulkUpdateTags({
+        activityIds: data.activityIds,
+        mode: data.mode,
+        tagIds: data.tagIds,
+        userId: this.request.user.id
+      });
+
+      return { updated };
+    } catch {
+      throw new HttpException(
+        getReasonPhrase(StatusCodes.BAD_REQUEST),
+        StatusCodes.BAD_REQUEST
+      );
+    }
+  }
+
   @Get()
   @UseGuards(AuthGuard('jwt'), HasPermissionGuard)
   @UseInterceptors(RedactValuesInResponseInterceptor)
@@ -115,6 +143,7 @@ export class ActivitiesController {
     @Query('activityTypes') filterByTypes?: string,
     @Query('assetClasses') filterByAssetClasses?: string,
     @Query('dataSource') filterByDataSource?: string,
+    @Query('query') filterBySearchQuery?: string,
     @Query('range') dateRange?: DateRange,
     @Query('skip') skip?: number,
     @Query('sortColumn') sortColumn?: string,
@@ -134,6 +163,7 @@ export class ActivitiesController {
       filterByAccounts,
       filterByAssetClasses,
       filterByDataSource,
+      filterBySearchQuery,
       filterBySymbol,
       filterByTags
     });

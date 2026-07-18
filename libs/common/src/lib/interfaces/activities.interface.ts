@@ -18,6 +18,13 @@ export interface Activity extends Order {
 }
 
 export interface ActivityError {
-  code: 'IS_DUPLICATE';
+  code: 'IS_DUPLICATE' | 'VALIDATION_ERROR';
   message?: string;
+  details?: ActivityFieldError[];
+  existingActivityId?: string;
+}
+
+export interface ActivityFieldError {
+  field: string;
+  message: string;
 }

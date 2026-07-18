@@ -215,11 +215,13 @@ export class AdminController {
   public async getMarketData(
     @Query('assetSubClasses') filterByAssetSubClasses?: string,
     @Query('dataSource') filterByDataSource?: string,
+    @Query('endDate') endDate?: string,
     @Query('presetId') presetId?: MarketDataPreset,
     @Query('query') filterBySearchQuery?: string,
     @Query('skip') skip?: number,
     @Query('sortColumn') sortColumn?: string,
     @Query('sortDirection') sortDirection?: Prisma.SortOrder,
+    @Query('startDate') startDate?: string,
     @Query('take') take?: number
   ): Promise<AdminMarketData> {
     const filters = this.apiService.buildFiltersFromQueryParams({
@@ -229,10 +231,12 @@ export class AdminController {
     });
 
     return this.adminService.getMarketData({
+      endDate,
       filters,
       presetId,
       sortColumn,
       sortDirection,
+      startDate,
       skip: isNaN(skip) ? undefined : skip,
       take: isNaN(take) ? undefined : take
     });

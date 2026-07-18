@@ -6,6 +6,8 @@ import { TagService } from '@ghostfolio/api/services/tag/tag.service';
 import {
   ExportResponse,
   Filter,
+  TaxCsvExportItem,
+  TaxCsvExportResponse,
   UserSettings
 } from '@ghostfolio/common/interfaces';
 
@@ -93,6 +95,7 @@ export class ExportService {
           comment,
           currency,
           id,
+          isDrip,
           isExcluded,
           name,
           platform,
@@ -110,6 +113,7 @@ export class ExportService {
             comment,
             currency,
             id,
+            isDrip,
             isExcluded,
             name,
             platformId
@@ -252,5 +256,193 @@ export class ExportService {
         }
       }
     };
+  }
+
+  public async exportTaxCsv({
+    endDate,
+    filters,
+    startDate,
+    userId,
+    userSettings
+  }: {
+    endDate?: Date;
+    filters?: Filter[];
+    startDate?: Date;
+    userId: string;
+    userSettings: UserSettings;
+  }): Promise<TaxCsvExportResponse> {
+    // Fetch all BUY/SELL/DIVIDEND activities sorted by date ascending
+    const { activities } = await this.activitiesService.getActivities({
+      endDate,
+      filters,
+      startDate,
+      userId,
+      includeDrafts: false,
+      sortColumn: 'date',
+      sortDirection: 'asc',
+      types: ['BUY', 'SELL', 'DIVIDEND'] as ActivityType[],
+      userCurrency: userSettings?.baseCurrency,
+      withExcludedAccountsAndActivities: false
+    });
+
+    // Build account name lookup
+    const accounts = await this.accountService.accounts({
+      where: { userId },
+      orderBy: { name: 'asc' }
+    });
+
+    const accountMap = new Map(
+      accounts.map((account) => [account.id, account.name])
+    );
+
+    const items = ExportService.computeTaxLots(activities, accountMap);
+
+    return {
+      meta: { date: new Date().toISOString(), version: environment.version },
+      items
+    };
+  }
+
+  /**
+   * FIFO matching of BUY→SELL pairs per symbol to produce tax lot records.
+   * Dividend activities are passed through as-is (no lot matching needed).
+   */
+  public static computeTaxLots(
+    activities: {
+      accountId?: string;
+      currency?: string;
+      date: Date;
+      fee: number;
+      quantity: number;
+      SymbolProfile: { currency?: string; symbol: string };
+      type: string;
+      unitPrice: number;
+    }[],
+    accountMap: Map<string, string>
+  ): TaxCsvExportItem[] {
+    interface BuyLot {
+      date: Date;
+      quantity: number;
+      unitPrice: number;
+      fee: number;
+      currency: string;
+      accountName: string;
+    }
+
+    // Group activities by symbol
+    const bySymbol = new Map<string, typeof activities>();
+
+    for (const activity of activities) {
+      const symbol = activity.SymbolProfile.symbol;
+      const list = bySymbol.get(symbol) ?? [];
+      list.push(activity);
+      bySymbol.set(symbol, list);
+    }
+
+    const items: TaxCsvExportItem[] = [];
+
+    for (const [symbol, symbolActivities] of bySymbol) {
+      const buyQueue: BuyLot[] = [];
+
+      for (const activity of symbolActivities) {
+        const currency =
+          activity.currency ?? activity.SymbolProfile.currency ?? '';
+        const accountName = activity.accountId
+          ? (accountMap.get(activity.accountId) ?? '')
+          : '';
+
+        if (activity.type === 'DIVIDEND') {
+          items.push({
+            acquisitionDate: '',
+            disposalDate: activity.date.toISOString(),
+            symbol,
+            currency,
+            quantity: activity.quantity,
+            costBasis: 0,
+            proceeds: activity.quantity * activity.unitPrice - activity.fee,
+            gainLoss: activity.quantity * activity.unitPrice - activity.fee,
+            account: accountName,
+            type: 'DIVIDEND'
+          });
+          continue;
+        }
+
+        if (activity.type === 'BUY') {
+          buyQueue.push({
+            date: activity.date,
+            quantity: activity.quantity,
+            unitPrice: activity.unitPrice,
+            fee: activity.fee,
+            currency,
+            accountName
+          });
+          continue;
+        }
+
+        // SELL — match against buy queue (FIFO)
+        let remainingToSell = activity.quantity;
+        const sellPrice = activity.unitPrice;
+        const sellDate = activity.date;
+        const sellFee = activity.fee;
+        const sellFeePerUnit =
+          activity.quantity > 0 ? sellFee / activity.quantity : 0;
+
+        while (remainingToSell > 0 && buyQueue.length > 0) {
+          const lot = buyQueue[0];
+          const matched = Math.min(remainingToSell, lot.quantity);
+          const buyFeePerUnit = lot.quantity > 0 ? lot.fee / lot.quantity : 0;
+
+          // Pro-rate fees for partial lot matches
+          const costBasis = matched * lot.unitPrice + matched * buyFeePerUnit;
+          const proceeds = matched * sellPrice - matched * sellFeePerUnit;
+          const gainLoss = proceeds - costBasis;
+
+          items.push({
+            acquisitionDate: lot.date.toISOString(),
+            disposalDate: sellDate.toISOString(),
+            symbol,
+            currency,
+            quantity: matched,
+            costBasis: Math.round(costBasis * 100) / 100,
+            proceeds: Math.round(proceeds * 100) / 100,
+            gainLoss: Math.round(gainLoss * 100) / 100,
+            account: accountName,
+            type: 'SELL'
+          });
+
+          lot.quantity -= matched;
+          lot.fee -= matched * buyFeePerUnit;
+          remainingToSell -= matched;
+
+          if (lot.quantity <= 0) {
+            buyQueue.shift();
+          }
+        }
+
+        // If sells exceed buys (short sales or missing data), record with no acquisition date
+        if (remainingToSell > 0) {
+          const proceeds =
+            remainingToSell * sellPrice - remainingToSell * sellFeePerUnit;
+
+          items.push({
+            acquisitionDate: '',
+            disposalDate: sellDate.toISOString(),
+            symbol,
+            currency,
+            quantity: remainingToSell,
+            costBasis: 0,
+            proceeds: Math.round(proceeds * 100) / 100,
+            gainLoss: Math.round(proceeds * 100) / 100,
+            account: accountName,
+            type: 'SELL'
+          });
+        }
+      }
+    }
+
+    // Sort by disposal date
+    items.sort((a, b) => a.disposalDate.localeCompare(b.disposalDate));
+
+    return items;
   }
 }

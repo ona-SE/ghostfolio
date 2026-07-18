@@ -1,3 +1,26 @@
+@if (hasBenchmarkSelector) {
+  <div class="benchmark-selector d-flex justify-content-end mb-2">
+    <mat-form-field
+      appearance="outline"
+      class="benchmark-select without-hint"
+      color="accent"
+    >
+      <mat-label i18n>Compare with...</mat-label>
+      <mat-select
+        name="benchmark"
+        [value]="benchmark?.id"
+        (selectionChange)="onChangeBenchmark($event.value)"
+      >
+        <mat-option [value]="null" />
+        @for (symbolProfile of benchmarks; track symbolProfile) {
+          <mat-option [value]="symbolProfile.id">{{
+            symbolProfile.name
+          }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </div>
+}
 @if (isLoading) {
   <ngx-skeleton-loader
     animation="pulse"

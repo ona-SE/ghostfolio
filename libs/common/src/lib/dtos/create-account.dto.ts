@@ -30,6 +30,10 @@ export class CreateAccountDto {
 
   @IsBoolean()
   @IsOptional()
+  isDrip?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
   isExcluded?: boolean;
 
   @IsString()

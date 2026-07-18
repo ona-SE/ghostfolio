@@ -413,8 +413,12 @@
       <div class="chart-container">
         <gf-investment-chart
           class="h-100"
+          [benchmark]="benchmark"
           [benchmarkDataItems]="investments"
           [benchmarkDataLabel]="portfolioEvolutionDataLabel"
+          [benchmarkPerformanceDataItems]="benchmarkPerformanceDataItems"
+          [benchmarks]="benchmarks"
+          [colorScheme]="user?.settings?.colorScheme"
           [currency]="user?.settings?.baseCurrency"
           [historicalDataItems]="performanceDataItems"
           [isInPercentage]="
@@ -422,6 +426,7 @@
           "
           [isLoading]="isLoadingInvestmentChart"
           [locale]="user?.settings?.locale"
+          (benchmarkChanged)="onChangeBenchmark($event)"
         />
       </div>
     </div>

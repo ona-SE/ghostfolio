@@ -53,8 +53,8 @@ import { CreateOrUpdateAccessDialogParams } from './create-or-update-access-dial
   templateUrl: './user-account-access.html'
 })
 export class GfUserAccountAccessComponent implements OnInit {
-  public accessesGet: Access[];
-  public accessesGive: Access[];
+  public accessesGet: Access[] = [];
+  public accessesGive: Access[] = [];
   public deviceType: string;
   public hasPermissionToCreateAccess: boolean;
   public hasPermissionToDeleteAccess: boolean;
@@ -63,7 +63,7 @@ export class GfUserAccountAccessComponent implements OnInit {
   public updateOwnAccessTokenForm = this.formBuilder.group({
     accessToken: ['', Validators.required]
   });
-  public user: User;
+  public user: User | undefined;
 
   public constructor(
     private changeDetectorRef: ChangeDetectorRef,
@@ -144,7 +144,8 @@ export class GfUserAccountAccessComponent implements OnInit {
       confirmFn: () => {
         this.dataService
           .updateOwnAccessToken({
-            accessToken: this.updateOwnAccessTokenForm.get('accessToken')?.value ?? ''
+            accessToken:
+              this.updateOwnAccessTokenForm.get('accessToken')?.value ?? ''
           })
           .pipe(
             catchError(() => {
@@ -187,8 +188,8 @@ export class GfUserAccountAccessComponent implements OnInit {
       data: {
         access: {
           alias: '',
-          grantee: undefined,
-          id: '',
+          grantee: null,
+          id: null,
           permissions: ['READ_RESTRICTED'],
           type: 'PRIVATE'
         }
@@ -222,7 +223,7 @@ export class GfUserAccountAccessComponent implements OnInit {
       data: {
         access: {
           alias: access.alias,
-          grantee: access.grantee === 'Public' ? undefined : access.grantee,
+          grantee: access.grantee === 'Public' ? null : access.grantee,
           id: access.id,
           permissions: access.permissions,
           type: access.type
@@ -242,13 +243,17 @@ export class GfUserAccountAccessComponent implements OnInit {
   }
 
   private update() {
+    if (!this.user) {
+      return;
+    }
+
     this.accessesGet = this.user.access.map(({ alias, id, permissions }) => {
       return {
         alias: alias ?? undefined,
         id,
         permissions,
         grantee: $localize`Me`,
-        type: 'PRIVATE' as const
+        type: 'PRIVATE'
       };
     });
 

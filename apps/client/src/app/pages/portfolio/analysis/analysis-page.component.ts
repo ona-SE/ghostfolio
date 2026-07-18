@@ -68,6 +68,7 @@ export class GfAnalysisPageComponent implements OnInit {
 
   public benchmark: Partial<SymbolProfile> | undefined;
   public benchmarkDataItems: HistoricalDataItem[] = [];
+  public benchmarkPerformanceDataItems: HistoricalDataItem[] = [];
   public benchmarks: Partial<SymbolProfile>[];
   public bottom3: PortfolioPosition[];
   public deviceType: string;
@@ -91,15 +92,15 @@ export class GfAnalysisPageComponent implements OnInit {
     { label: $localize`Yearly`, value: 'year' }
   ];
   public performance: PortfolioPerformance;
-  public performanceDataItems: HistoricalDataItem[];
-  public performanceDataItemsInPercentage: HistoricalDataItem[];
+  public performanceDataItems: HistoricalDataItem[] = [];
+  public performanceDataItemsInPercentage: HistoricalDataItem[] = [];
   public portfolioEvolutionDataLabel = $localize`Investment`;
   public precision = 2;
   public streaks: PortfolioInvestmentsResponse['streaks'];
   public top3: PortfolioPosition[];
   public unitCurrentStreak: string;
   public unitLongestStreak: string;
-  public user: User;
+  public user: User | undefined;
 
   public constructor(
     private changeDetectorRef: ChangeDetectorRef,
@@ -119,11 +120,11 @@ export class GfAnalysisPageComponent implements OnInit {
 
   get savingsRate() {
     const savingsRatePerMonth =
-      this.hasImpersonationId || this.user?.settings?.isRestrictedView
+      this.hasImpersonationId || this.user?.settings.isRestrictedView
         ? undefined
         : this.user?.settings?.savingsRate;
 
-    if (savingsRatePerMonth === undefined) {
+    if (!savingsRatePerMonth) {
       return undefined;
     }
 
@@ -149,7 +150,7 @@ export class GfAnalysisPageComponent implements OnInit {
           this.user = state.user;
 
           this.benchmark = this.benchmarks.find(({ id }) => {
-            return id === this.user.settings?.benchmark;
+            return id === state.user.settings?.benchmark;
           });
 
           this.hasPermissionToReadAiPrompt = hasPermission(
@@ -313,13 +314,13 @@ export class GfAnalysisPageComponent implements OnInit {
               date,
               value: isNumber(valueWithCurrencyEffect)
                 ? valueWithCurrencyEffect
-                : valueInPercentage
+                : (valueInPercentage ?? 0)
             });
           }
 
           this.performanceDataItemsInPercentage.push({
             date,
-            value: netPerformanceInPercentageWithCurrencyEffect
+            value: netPerformanceInPercentageWithCurrencyEffect ?? 0
           });
         }
 
@@ -341,7 +342,7 @@ export class GfAnalysisPageComponent implements OnInit {
     this.dataService
       .fetchPortfolioHoldings({
         filters: this.userService.getFilters(),
-        range: this.user?.settings?.dateRange ?? 'max'
+        range: this.user?.settings?.dateRange
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(({ holdings }) => {
@@ -376,11 +377,12 @@ export class GfAnalysisPageComponent implements OnInit {
 
   private updateBenchmarkDataItems() {
     this.benchmarkDataItems = [];
+    this.benchmarkPerformanceDataItems = [];
 
-    if (this.user.settings.benchmark) {
+    if (this.user?.settings.benchmark) {
       const { dataSource, symbol } =
         this.benchmarks.find(({ id }) => {
-          return id === this.user.settings.benchmark;
+          return id === this.user?.settings.benchmark;
         }) ?? {};
 
       if (dataSource && symbol) {
@@ -402,6 +404,23 @@ export class GfAnalysisPageComponent implements OnInit {
                 value
               };
             });
+
+            // Scale benchmark % data to absolute values for the Portfolio
+            // Evolution chart. Uses the portfolio's starting value so the
+            // benchmark line shows "what would the portfolio be worth if it
+            // tracked this index."
+            const startingValue = this.performanceDataItems?.[0]?.value;
+
+            if (isNumber(startingValue) && startingValue !== 0) {
+              this.benchmarkPerformanceDataItems = marketData.map(
+                ({ date, value }) => {
+                  return {
+                    date,
+                    value: startingValue * (1 + value / 100)
+                  };
+                }
+              );
+            }
 
             this.isLoadingBenchmarkComparator = false;
 

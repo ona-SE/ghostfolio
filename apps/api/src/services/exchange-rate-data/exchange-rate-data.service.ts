@@ -1,5 +1,6 @@
 import { LogPerformance } from '@ghostfolio/api/interceptors/performance-logging/performance-logging.interceptor';
 import { DataProviderService } from '@ghostfolio/api/services/data-provider/data-provider.service';
+import { EcbService } from '@ghostfolio/api/services/ecb/ecb.service';
 import { DataGatheringItem } from '@ghostfolio/api/services/interfaces/interfaces';
 import { MarketDataService } from '@ghostfolio/api/services/market-data/market-data.service';
 import { PrismaService } from '@ghostfolio/api/services/prisma/prisma.service';
@@ -30,13 +31,20 @@ import { ExchangeRatesByCurrency } from './interfaces/exchange-rate-data.interfa
 
 @Injectable()
 export class ExchangeRateDataService {
+  private static readonly EXCHANGE_RATE_CACHE_TTL = ms('5 minutes');
+
   private currencies: string[] = [];
   private currencyPairs: DataGatheringItem[] = [];
   private derivedCurrencyFactors: { [currencyPair: string]: number } = {};
+  private exchangeRateCache = new Map<
+    string,
+    { data: { [dateString: string]: number }; expiresAt: number }
+  >();
   private exchangeRates: { [currencyPair: string]: number } = {};
 
   public constructor(
     private readonly dataProviderService: DataProviderService,
+    private readonly ecbService: EcbService,
     private readonly marketDataService: MarketDataService,
     private readonly prismaService: PrismaService,
     private readonly propertyService: PropertyService
@@ -139,6 +147,7 @@ export class ExchangeRateDataService {
     this.currencies = await this.prepareCurrencies();
     this.currencyPairs = [];
     this.derivedCurrencyFactors = {};
+    this.exchangeRateCache.clear();
     this.exchangeRates = {};
 
     for (const { currency, factor, rootCurrency } of DERIVED_CURRENCIES) {
@@ -161,30 +170,80 @@ export class ExchangeRateDataService {
   }
 
   public async loadCurrencies() {
-    const result = await this.dataProviderService.getHistorical(
-      this.currencyPairs,
-      'day',
-      getYesterday(),
-      getYesterday()
+    // 1. Try ECB as primary source for major currency pairs
+    const ecbRates = await this.ecbService.getLatestRates();
+    const ecbPairRates = this.ecbService.convertToBaseCurrency(
+      ecbRates,
+      DEFAULT_CURRENCY
     );
 
-    const quotes = await this.dataProviderService.getQuotes({
-      items: this.currencyPairs.map(({ dataSource, symbol }) => {
-        return { dataSource, symbol };
-      }),
-      requestTimeout: ms('30 seconds')
-    });
+    const ecbCoveredSymbols = new Set<string>();
 
-    for (const symbol of Object.keys(quotes)) {
-      if (isNumber(quotes[symbol].marketPrice)) {
-        result[symbol] = {
-          [format(getYesterday(), DATE_FORMAT)]: {
-            marketPrice: quotes[symbol].marketPrice
-          }
-        };
+    for (const { symbol } of this.currencyPairs) {
+      if (ecbPairRates[symbol] && isNumber(ecbPairRates[symbol])) {
+        ecbCoveredSymbols.add(symbol);
       }
     }
 
+    if (ecbCoveredSymbols.size > 0) {
+      Logger.log(
+        `ECB covers ${ecbCoveredSymbols.size} of ${this.currencyPairs.length} currency pairs`,
+        'ExchangeRateDataService'
+      );
+    }
+
+    // 2. Fall back to existing data provider for pairs ECB doesn't cover
+    const fallbackPairs = this.currencyPairs.filter(({ symbol }) => {
+      return !ecbCoveredSymbols.has(symbol);
+    });
+
+    const result: {
+      [symbol: string]: { [date: string]: { marketPrice: number } };
+    } = {};
+
+    // Populate ECB-covered pairs
+    const yesterdayDate = format(getYesterday(), DATE_FORMAT);
+
+    for (const symbol of ecbCoveredSymbols) {
+      result[symbol] = {
+        [yesterdayDate]: {
+          marketPrice: ecbPairRates[symbol]
+        }
+      };
+    }
+
+    // Fetch remaining pairs from the existing data provider
+    if (fallbackPairs.length > 0) {
+      const fallbackResult = await this.dataProviderService.getHistorical(
+        fallbackPairs,
+        'day',
+        getYesterday(),
+        getYesterday()
+      );
+
+      const fallbackQuotes = await this.dataProviderService.getQuotes({
+        items: fallbackPairs.map(({ dataSource, symbol }) => {
+          return { dataSource, symbol };
+        }),
+        requestTimeout: ms('30 seconds')
+      });
+
+      for (const symbol of Object.keys(fallbackResult)) {
+        result[symbol] = fallbackResult[symbol];
+      }
+
+      for (const symbol of Object.keys(fallbackQuotes)) {
+        if (isNumber(fallbackQuotes[symbol].marketPrice)) {
+          result[symbol] = {
+            [yesterdayDate]: {
+              marketPrice: fallbackQuotes[symbol].marketPrice
+            }
+          };
+        }
+      }
+    }
+
+    // 3. Build exchange rate map (same logic as before)
     const resultExtended = result;
 
     for (const symbol of Object.keys(result)) {
@@ -352,6 +411,20 @@ export class ExchangeRateDataService {
     return undefined;
   }
 
+  private getExchangeRateCacheKey({
+    currencyFrom,
+    currencyTo,
+    endDate,
+    startDate
+  }: {
+    currencyFrom: string;
+    currencyTo: string;
+    endDate: Date;
+    startDate: Date;
+  }): string {
+    return `${currencyFrom}${currencyTo}-${format(startDate, DATE_FORMAT)}-${format(endDate, DATE_FORMAT)}`;
+  }
+
   private async getExchangeRates({
     currencyFrom,
     currencyTo,
@@ -383,6 +456,20 @@ export class ExchangeRateDataService {
       }
 
       return factors;
+    }
+
+    // Check in-memory cache before hitting the database
+    const cacheKey = this.getExchangeRateCacheKey({
+      currencyFrom,
+      currencyTo,
+      endDate,
+      startDate
+    });
+
+    const cached = this.exchangeRateCache.get(cacheKey);
+
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.data;
     }
 
     const dataSource = this.dataProviderService.getDataSourceForExchangeRates();
@@ -486,6 +573,15 @@ export class ExchangeRateDataService {
           Logger.error(`${errorMessage}.`, 'ExchangeRateDataService');
         }
       }
+    }
+
+    // Store in in-memory cache
+    if (Object.keys(factors).length > 0) {
+      this.exchangeRateCache.set(cacheKey, {
+        data: factors,
+        expiresAt:
+          Date.now() + ExchangeRateDataService.EXCHANGE_RATE_CACHE_TTL
+      });
     }
 
     return factors;

@@ -52,7 +52,7 @@ export class GfAccountsPageComponent implements OnInit {
   public routeQueryParams: Subscription;
   public totalBalanceInBaseCurrency = 0;
   public totalValueInBaseCurrency = 0;
-  public user: User;
+  public user: User | undefined;
 
   public constructor(
     private changeDetectorRef: ChangeDetectorRef,
@@ -84,11 +84,13 @@ export class GfAccountsPageComponent implements OnInit {
 
             if (account) {
               this.openUpdateAccountDialog(account);
+            } else {
+              this.router.navigate(['.'], { relativeTo: this.route });
             }
           } else {
             this.router.navigate(['.'], { relativeTo: this.route });
           }
-        } else if (params['transferBalanceDialog']) {
+        } else if (params['transferBalanceDialog'] && this.accounts) {
           this.openTransferBalanceDialog();
         }
       });
@@ -186,6 +188,7 @@ export class GfAccountsPageComponent implements OnInit {
     comment,
     currency,
     id,
+    isDrip,
     isExcluded,
     name,
     platformId
@@ -200,6 +203,7 @@ export class GfAccountsPageComponent implements OnInit {
           comment,
           currency,
           id,
+          isDrip,
           isExcluded,
           name,
           platformId
@@ -274,7 +278,8 @@ export class GfAccountsPageComponent implements OnInit {
           balance: 0,
           comment: null,
           currency: this.user?.settings?.baseCurrency ?? null,
-          id: '',
+          id: null,
+          isDrip: false,
           isExcluded: false,
           name: null,
           platformId: null

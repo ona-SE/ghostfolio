@@ -161,7 +161,7 @@ export class GfCreateOrUpdateAccessDialogComponent implements OnInit {
     const access: UpdateAccessDto = {
       alias: this.accessForm.get('alias')?.value,
       granteeUserId: this.accessForm.get('granteeUserId')?.value,
-      id: this.data.access.id,
+      id: this.data.access.id ?? '',
       permissions: [this.accessForm.get('permissions')?.value]
     };
 

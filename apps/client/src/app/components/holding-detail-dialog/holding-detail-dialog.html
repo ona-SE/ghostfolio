@@ -89,6 +89,26 @@
                 }
               </gf-value>
             </div>
+            @if (
+              SymbolProfile?.currency &&
+              data.baseCurrency !== SymbolProfile?.currency
+            ) {
+              <div class="col-6 mb-3">
+                <gf-value
+                  i18n
+                  size="medium"
+                  [colorizeSign]="true"
+                  [isCurrency]="true"
+                  [locale]="data.locale"
+                  [precision]="unrealizedCurrencyGainInBaseCurrencyPrecision"
+                  [unit]="data.baseCurrency"
+                  [value]="unrealizedCurrencyGainInBaseCurrency"
+                  >Unrealized Currency Gain</gf-value
+                >
+              </div>
+              <div class="col-6 mb-3"></div>
+            }
+
             <div class="col-6 mb-3">
               <gf-value
                 i18n
@@ -251,60 +271,27 @@
                 >Asset Sub Class</gf-value
               >
             </div>
-            @if (
-              SymbolProfile?.countries?.length > 0 ||
-              SymbolProfile?.sectors?.length > 0
-            ) {
-              @if (
-                SymbolProfile?.countries?.length === 1 &&
-                SymbolProfile?.sectors?.length === 1
-              ) {
-                <div class="col-6 mb-3">
-                  <gf-value
-                    i18n
-                    size="medium"
-                    [locale]="data.locale"
-                    [value]="SymbolProfile.sectors[0].name"
-                    >Sector</gf-value
-                  >
-                </div>
-                @if (SymbolProfile?.countries?.length === 1) {
-                  <div class="col-6 mb-3">
-                    <gf-value
-                      i18n
-                      size="medium"
-                      [locale]="data.locale"
-                      [value]="SymbolProfile.countries[0].name"
-                      >Country</gf-value
-                    >
-                  </div>
-                }
-              } @else {
-                <div class="col-md-6 mb-3">
-                  <div class="h5" i18n>Sectors</div>
-                  <gf-portfolio-proportion-chart
-                    [baseCurrency]="data.baseCurrency"
-                    [colorScheme]="data.colorScheme"
-                    [data]="sectors"
-                    [isInPercentage]="true"
-                    [keys]="['name']"
-                    [locale]="data.locale"
-                    [maxItems]="10"
-                  />
-                </div>
-                <div class="col-md-6 mb-3">
-                  <div class="h5" i18n>Countries</div>
-                  <gf-portfolio-proportion-chart
-                    [baseCurrency]="data.baseCurrency"
-                    [colorScheme]="data.colorScheme"
-                    [data]="countries"
-                    [isInPercentage]="true"
-                    [keys]="['name']"
-                    [locale]="data.locale"
-                    [maxItems]="10"
-                  />
-                </div>
-              }
+            @if (SymbolProfile?.sectors?.length === 1) {
+              <div class="col-6 mb-3">
+                <gf-value
+                  i18n
+                  size="medium"
+                  [locale]="data.locale"
+                  [value]="SymbolProfile.sectors[0].name"
+                  >Sector</gf-value
+                >
+              </div>
+            }
+            @if (SymbolProfile?.countries?.length === 1) {
+              <div class="col-6 mb-3">
+                <gf-value
+                  i18n
+                  size="medium"
+                  [locale]="data.locale"
+                  [value]="SymbolProfile.countries[0].name"
+                  >Country</gf-value
+                >
+              </div>
             }
             <div class="col-6 mb-3">
               <gf-value
@@ -342,6 +329,49 @@
           </div>
         </div>
       </mat-tab>
+      @if (
+        SymbolProfile?.sectors?.length > 1 ||
+        SymbolProfile?.countries?.length > 1
+      ) {
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <ion-icon name="pie-chart-outline" />
+            <div class="d-none d-sm-block ml-2" i18n>Breakdown</div>
+          </ng-template>
+          <div class="container mt-3 p-0">
+            <div class="row w-100">
+              @if (SymbolProfile?.sectors?.length > 1) {
+                <div class="col-md-6 mb-3">
+                  <div class="h5" i18n>Sectors</div>
+                  <gf-portfolio-proportion-chart
+                    [baseCurrency]="data.baseCurrency"
+                    [colorScheme]="data.colorScheme"
+                    [data]="sectors"
+                    [isInPercentage]="true"
+                    [keys]="['name']"
+                    [locale]="data.locale"
+                    [maxItems]="10"
+                  />
+                </div>
+              }
+              @if (SymbolProfile?.countries?.length > 1) {
+                <div class="col-md-6 mb-3">
+                  <div class="h5" i18n>Countries</div>
+                  <gf-portfolio-proportion-chart
+                    [baseCurrency]="data.baseCurrency"
+                    [colorScheme]="data.colorScheme"
+                    [data]="countries"
+                    [isInPercentage]="true"
+                    [keys]="['name']"
+                    [locale]="data.locale"
+                    [maxItems]="10"
+                  />
+                </div>
+              }
+            </div>
+          </div>
+        </mat-tab>
+      }
       <mat-tab>
         <ng-template mat-tab-label>
           <ion-icon name="swap-vertical-outline" />

@@ -323,6 +323,10 @@ export class YahooFinanceDataEnhancerService implements DataEnhancerInterface {
         assetClass = AssetClass.EQUITY;
         assetSubClass = AssetSubClass.MUTUALFUND;
         break;
+      case 'option':
+        assetClass = AssetClass.EQUITY;
+        assetSubClass = AssetSubClass.OPTION;
+        break;
     }
 
     return { assetClass, assetSubClass };

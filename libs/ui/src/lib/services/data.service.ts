@@ -1,8 +1,10 @@
 import {
+  BulkUpdateActivitiesTagsDto,
   CreateAccessDto,
   CreateAccountBalanceDto,
   CreateAccountDto,
   CreateOrderDto,
+  CreateRecurringInvestmentPlanDto,
   CreateTagDto,
   CreateWatchlistItemDto,
   DeleteOwnUserDto,
@@ -13,6 +15,7 @@ import {
   UpdateOrderDto,
   UpdateOwnAccessTokenDto,
   UpdatePropertyDto,
+  UpdateRecurringInvestmentPlanDto,
   UpdateTagDto,
   UpdateUserSettingDto
 } from '@ghostfolio/common/dtos';
@@ -37,20 +40,25 @@ import {
   ExportResponse,
   Filter,
   ImportResponse,
+  TaxCsvExportResponse,
+  TaxReportResponse,
   InfoItem,
   LookupResponse,
   MarketDataDetailsResponse,
   MarketDataOfMarketsResponse,
   OAuthResponse,
   PlatformsResponse,
+  PortfolioComparisonResponse,
   PortfolioDetails,
   PortfolioDividendsResponse,
   PortfolioHoldingResponse,
   PortfolioHoldingsResponse,
   PortfolioInvestmentsResponse,
   PortfolioPerformanceResponse,
+  PortfolioRebalancingResponse,
   PortfolioReportResponse,
   PublicPortfolioResponse,
+  RecurringInvestmentPlansResponse,
   SymbolItem,
   User,
   UserItem,
@@ -328,6 +336,10 @@ export class DataService {
     return this.http.delete<AccountBalance>(`/api/v1/account-balance/${aId}`);
   }
 
+  public deleteRecurringInvestmentPlan(aId: string) {
+    return this.http.delete<void>(`/api/v1/recurring-investment-plan/${aId}`);
+  }
+
   public deleteActivities({ filters }: { filters?: Filter[] }) {
     const params = this.buildFiltersAsQueryParams({ filters });
 
@@ -336,6 +348,13 @@ export class DataService {
 
   public deleteActivity(aId: string) {
     return this.http.delete<Order>(`/api/v1/activities/${aId}`);
+  }
+
+  public bulkUpdateActivitiesTags(data: BulkUpdateActivitiesTagsDto) {
+    return this.http.patch<{ updated: number }>(
+      '/api/v1/activities/tags',
+      data
+    );
   }
 
   public deleteBenchmark({ dataSource, symbol }: AssetProfileIdentifier) {
@@ -439,6 +458,58 @@ export class DataService {
     });
   }
 
+  public fetchTaxCsvExport({
+    accounts,
+    endDate,
+    filters,
+    startDate
+  }: {
+    accounts?: string;
+    endDate?: string;
+    filters?: Filter[];
+    startDate?: string;
+  } = {}) {
+    let params = this.buildFiltersAsQueryParams({ filters });
+
+    if (accounts) {
+      params = params.append('accounts', accounts);
+    }
+
+    if (startDate) {
+      params = params.append('startDate', startDate);
+    }
+
+    if (endDate) {
+      params = params.append('endDate', endDate);
+    }
+
+    return this.http.get<TaxCsvExportResponse>('/api/v1/export/tax-csv', {
+      params
+    });
+  }
+
+  public fetchTaxReport({
+    accounts,
+    filters,
+    taxYear
+  }: {
+    accounts?: string;
+    filters?: Filter[];
+    taxYear: number;
+  }) {
+    let params = this.buildFiltersAsQueryParams({ filters });
+
+    params = params.append('taxYear', String(taxYear));
+
+    if (accounts) {
+      params = params.append('accounts', accounts);
+    }
+
+    return this.http.get<TaxReportResponse>('/api/v1/tax-report', {
+      params
+    });
+  }
+
   public fetchHoldingDetail({
     dataSource,
     symbol
@@ -533,6 +604,23 @@ export class DataService {
 
   public fetchPlatforms() {
     return this.http.get<PlatformsResponse>('/api/v1/platforms');
+  }
+
+  public fetchPortfolioComparison({
+    accountIds,
+    range
+  }: {
+    accountIds: string[];
+    range: DateRange;
+  }): Observable<PortfolioComparisonResponse> {
+    let params = new HttpParams();
+    params = params.append('accounts', accountIds.join(','));
+    params = params.append('range', range);
+
+    return this.http.get<PortfolioComparisonResponse>(
+      '/api/v1/portfolio/comparison',
+      { params }
+    );
   }
 
   public fetchPortfolioDetails({
@@ -674,8 +762,20 @@ export class DataService {
       );
   }
 
+  public fetchPortfolioRebalancing() {
+    return this.http.get<PortfolioRebalancingResponse>(
+      '/api/v1/portfolio/rebalancing'
+    );
+  }
+
   public fetchPortfolioReport() {
     return this.http.get<PortfolioReportResponse>('/api/v1/portfolio/report');
+  }
+
+  public fetchRecurringInvestmentPlans() {
+    return this.http.get<RecurringInvestmentPlansResponse>(
+      '/api/v1/recurring-investment-plan'
+    );
   }
 
   public fetchPrompt({
@@ -809,6 +909,10 @@ export class DataService {
     return this.http.post<MarketData>(url, marketData);
   }
 
+  public postRecurringInvestmentPlan(aPlan: CreateRecurringInvestmentPlanDto) {
+    return this.http.post<void>('/api/v1/recurring-investment-plan', aPlan);
+  }
+
   public postTag(aTag: CreateTagDto) {
     return this.http.post<Tag>(`/api/v1/tags`, aTag);
   }
@@ -827,6 +931,15 @@ export class DataService {
 
   public putAccount(aAccount: UpdateAccountDto) {
     return this.http.put<UserItem>(`/api/v1/account/${aAccount.id}`, aAccount);
+  }
+
+  public putRecurringInvestmentPlan(
+    aPlan: UpdateRecurringInvestmentPlanDto & { id: string }
+  ) {
+    return this.http.put<void>(
+      `/api/v1/recurring-investment-plan/${aPlan.id}`,
+      aPlan
+    );
   }
 
   public putActivity(aOrder: UpdateOrderDto) {

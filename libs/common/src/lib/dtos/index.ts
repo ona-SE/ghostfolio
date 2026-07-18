@@ -1,4 +1,5 @@
 import { AuthDeviceDto } from './auth-device.dto';
+import { BulkUpdateActivitiesTagsDto } from './bulk-update-activities-tags.dto';
 import { CreateAccessDto } from './create-access.dto';
 import { CreateAccountBalanceDto } from './create-account-balance.dto';
 import { CreateAccountWithBalancesDto } from './create-account-with-balances.dto';
@@ -7,6 +8,8 @@ import { CreateAssetProfileWithMarketDataDto } from './create-asset-profile-with
 import { CreateAssetProfileDto } from './create-asset-profile.dto';
 import { CreateOrderDto } from './create-order.dto';
 import { CreatePlatformDto } from './create-platform.dto';
+import { CreatePriceAlertDto } from './create-price-alert.dto';
+import { CreateRecurringInvestmentPlanDto } from './create-recurring-investment-plan.dto';
 import { CreateTagDto } from './create-tag.dto';
 import { CreateWatchlistItemDto } from './create-watchlist-item.dto';
 import { DeleteOwnUserDto } from './delete-own-user.dto';
@@ -19,12 +22,15 @@ import { UpdateMarketDataDto } from './update-market-data.dto';
 import { UpdateOrderDto } from './update-order.dto';
 import { UpdateOwnAccessTokenDto } from './update-own-access-token.dto';
 import { UpdatePlatformDto } from './update-platform.dto';
+import { UpdatePriceAlertDto } from './update-price-alert.dto';
 import { UpdatePropertyDto } from './update-property.dto';
+import { UpdateRecurringInvestmentPlanDto } from './update-recurring-investment-plan.dto';
 import { UpdateTagDto } from './update-tag.dto';
 import { UpdateUserSettingDto } from './update-user-setting.dto';
 
 export {
   AuthDeviceDto,
+  BulkUpdateActivitiesTagsDto,
   CreateAccessDto,
   CreateAccountBalanceDto,
   CreateAccountDto,
@@ -33,6 +39,8 @@ export {
   CreateAssetProfileWithMarketDataDto,
   CreateOrderDto,
   CreatePlatformDto,
+  CreatePriceAlertDto,
+  CreateRecurringInvestmentPlanDto,
   CreateTagDto,
   CreateWatchlistItemDto,
   DeleteOwnUserDto,
@@ -45,6 +53,8 @@ export {
   UpdateOrderDto,
   UpdateOwnAccessTokenDto,
   UpdatePlatformDto,
+  UpdatePriceAlertDto,
+  UpdateRecurringInvestmentPlanDto,
   UpdatePropertyDto,
   UpdateTagDto,
   UpdateUserSettingDto

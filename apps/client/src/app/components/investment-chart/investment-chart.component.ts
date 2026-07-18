@@ -3,7 +3,11 @@ import {
   getVerticalHoverLinePlugin,
   transformTickToAbbreviation
 } from '@ghostfolio/common/chart-helper';
-import { primaryColorRgb, secondaryColorRgb } from '@ghostfolio/common/config';
+import {
+  benchmarkColorRgb,
+  primaryColorRgb,
+  secondaryColorRgb
+} from '@ghostfolio/common/config';
 import {
   getBackgroundColor,
   getDateFormatString,
@@ -11,7 +15,10 @@ import {
   getTextColor,
   parseDate
 } from '@ghostfolio/common/helper';
-import { LineChartItem } from '@ghostfolio/common/interfaces';
+import {
+  HistoricalDataItem,
+  LineChartItem
+} from '@ghostfolio/common/interfaces';
 import { InvestmentItem } from '@ghostfolio/common/interfaces/investment-item.interface';
 import { ColorScheme, GroupBy } from '@ghostfolio/common/types';
 import { registerChartConfiguration } from '@ghostfolio/ui/chart';
@@ -21,16 +28,22 @@ import {
   ChangeDetectionStrategy,
   Component,
   type ElementRef,
+  EventEmitter,
   Input,
   OnChanges,
   OnDestroy,
+  Output,
   ViewChild
 } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { MatSelectModule } from '@angular/material/select';
+import { SymbolProfile } from '@prisma/client';
 import {
   BarController,
   BarElement,
   Chart,
   ChartData,
+  ChartDataset,
   LinearScale,
   LineController,
   LineElement,
@@ -49,14 +62,17 @@ import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, NgxSkeletonLoaderModule],
+  imports: [CommonModule, FormsModule, MatSelectModule, NgxSkeletonLoaderModule],
   selector: 'gf-investment-chart',
   styleUrls: ['./investment-chart.component.scss'],
   templateUrl: './investment-chart.component.html'
 })
 export class GfInvestmentChartComponent implements OnChanges, OnDestroy {
+  @Input() benchmark: Partial<SymbolProfile>;
   @Input() benchmarkDataItems: InvestmentItem[] = [];
   @Input() benchmarkDataLabel = '';
+  @Input() benchmarkPerformanceDataItems: HistoricalDataItem[] = [];
+  @Input() benchmarks: Partial<SymbolProfile>[];
   @Input() colorScheme: ColorScheme;
   @Input() currency: string;
   @Input() groupBy: GroupBy;
@@ -66,9 +82,12 @@ export class GfInvestmentChartComponent implements OnChanges, OnDestroy {
   @Input() locale = getLocale();
   @Input() savingsRate = 0;
 
+  @Output() benchmarkChanged = new EventEmitter<string>();
+
   @ViewChild('chartCanvas') chartCanvas: ElementRef<HTMLCanvasElement>;
 
   public chart: Chart<'bar' | 'line'>;
+  public hasBenchmarkSelector = false;
   private investments: InvestmentItem[];
   private values: LineChartItem[];
 
@@ -89,6 +108,9 @@ export class GfInvestmentChartComponent implements OnChanges, OnDestroy {
   }
 
   public ngOnChanges() {
+    this.hasBenchmarkSelector =
+      this.benchmarks?.length > 0 && !this.groupBy;
+
     if (this.benchmarkDataItems && this.historicalDataItems) {
       this.initialize();
     }
@@ -98,8 +120,12 @@ export class GfInvestmentChartComponent implements OnChanges, OnDestroy {
     this.chart?.destroy();
   }
 
+  public onChangeBenchmark(symbolProfileId: string) {
+    this.benchmarkChanged.next(symbolProfileId);
+  }
+
   private initialize() {
-    // Create a clone
+    // Create clones
     this.investments = this.benchmarkDataItems.map((item) =>
       Object.assign({}, item)
     );
@@ -107,54 +133,95 @@ export class GfInvestmentChartComponent implements OnChanges, OnDestroy {
       Object.assign({}, item)
     );
 
+    const datasets: ChartDataset<'bar' | 'line'>[] = [
+      {
+        backgroundColor: `rgb(${secondaryColorRgb.r}, ${secondaryColorRgb.g}, ${secondaryColorRgb.b})`,
+        borderColor: `rgb(${secondaryColorRgb.r}, ${secondaryColorRgb.g}, ${secondaryColorRgb.b})`,
+        borderWidth: this.groupBy ? 0 : 1,
+        data: this.investments.map(({ date, investment }) => {
+          return {
+            x: parseDate(date).getTime(),
+            y: this.isInPercentage ? investment * 100 : investment
+          };
+        }),
+        label: this.benchmarkDataLabel,
+        segment: {
+          borderColor: (context) =>
+            this.isInFuture(
+              context,
+              `rgba(${secondaryColorRgb.r}, ${secondaryColorRgb.g}, ${secondaryColorRgb.b}, 0.67)`
+            ),
+          borderDash: (context) => this.isInFuture(context, [2, 2])
+        },
+        stepped: true
+      },
+      {
+        borderColor: `rgb(${primaryColorRgb.r}, ${primaryColorRgb.g}, ${primaryColorRgb.b})`,
+        borderWidth: 2,
+        data: this.values.map(({ date, value }) => {
+          return {
+            x: parseDate(date).getTime(),
+            y: this.isInPercentage ? value * 100 : value
+          };
+        }),
+        fill: false,
+        label: $localize`Total Amount`,
+        pointRadius: 0,
+        segment: {
+          borderColor: (context) =>
+            this.isInFuture(
+              context,
+              `rgba(${primaryColorRgb.r}, ${primaryColorRgb.g}, ${primaryColorRgb.b}, 0.67)`
+            ),
+          borderDash: (context) => this.isInFuture(context, [2, 2])
+        }
+      }
+    ];
+
+    // Add benchmark performance overlay when data is available
+    if (this.benchmarkPerformanceDataItems?.length > 0 && !this.groupBy) {
+      const benchmarkLabel =
+        this.benchmark?.name ?? $localize`Benchmark`;
+
+      // Build a lookup of benchmark values by date
+      const benchmarkByDate: Record<string, number> = {};
+
+      for (const { date, value } of this.benchmarkPerformanceDataItems) {
+        benchmarkByDate[date] = value;
+      }
+
+      // Align benchmark data to the same date axis as the portfolio values
+      const benchmarkAligned = this.values.map(({ date }) => {
+        const benchmarkValue = benchmarkByDate[date];
+
+        return {
+          x: parseDate(date).getTime(),
+          y:
+            benchmarkValue != null
+              ? this.isInPercentage
+                ? benchmarkValue * 100
+                : benchmarkValue
+              : null
+        };
+      });
+
+      datasets.push({
+        borderColor: `rgb(${benchmarkColorRgb.r}, ${benchmarkColorRgb.g}, ${benchmarkColorRgb.b})`,
+        borderDash: [4, 2],
+        borderWidth: 2,
+        data: benchmarkAligned,
+        fill: false,
+        label: benchmarkLabel,
+        pointRadius: 0,
+        spanGaps: true
+      });
+    }
+
     const chartData: ChartData<'bar' | 'line'> = {
       labels: this.historicalDataItems.map(({ date }) => {
         return parseDate(date);
       }),
-      datasets: [
-        {
-          backgroundColor: `rgb(${secondaryColorRgb.r}, ${secondaryColorRgb.g}, ${secondaryColorRgb.b})`,
-          borderColor: `rgb(${secondaryColorRgb.r}, ${secondaryColorRgb.g}, ${secondaryColorRgb.b})`,
-          borderWidth: this.groupBy ? 0 : 1,
-          data: this.investments.map(({ date, investment }) => {
-            return {
-              x: parseDate(date).getTime(),
-              y: this.isInPercentage ? investment * 100 : investment
-            };
-          }),
-          label: this.benchmarkDataLabel,
-          segment: {
-            borderColor: (context) =>
-              this.isInFuture(
-                context,
-                `rgba(${secondaryColorRgb.r}, ${secondaryColorRgb.g}, ${secondaryColorRgb.b}, 0.67)`
-              ),
-            borderDash: (context) => this.isInFuture(context, [2, 2])
-          },
-          stepped: true
-        },
-        {
-          borderColor: `rgb(${primaryColorRgb.r}, ${primaryColorRgb.g}, ${primaryColorRgb.b})`,
-          borderWidth: 2,
-          data: this.values.map(({ date, value }) => {
-            return {
-              x: parseDate(date).getTime(),
-              y: this.isInPercentage ? value * 100 : value
-            };
-          }),
-          fill: false,
-          label: $localize`Total Amount`,
-          pointRadius: 0,
-          segment: {
-            borderColor: (context) =>
-              this.isInFuture(
-                context,
-                `rgba(${primaryColorRgb.r}, ${primaryColorRgb.g}, ${primaryColorRgb.b}, 0.67)`
-              ),
-            borderDash: (context) => this.isInFuture(context, [2, 2])
-          }
-        }
-      ]
+      datasets
     };
 
     if (this.chartCanvas) {

@@ -1,0 +1,183 @@
+<div class="container">
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <div class="d-flex align-items-center gap-3">
+      <h3 class="mb-0" i18n>Tax Report</h3>
+      <mat-form-field appearance="outline" class="tax-year-select">
+        <mat-label i18n>Tax Year</mat-label>
+        <mat-select [(value)]="selectedYear" (selectionChange)="onYearChange()">
+          @for (year of yearOptions; track year) {
+            <mat-option [value]="year">{{ year }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+    <button
+      color="primary"
+      mat-flat-button
+      [disabled]="isLoading || !items?.length"
+      (click)="onExportCsv()"
+    >
+      <span i18n>Export CSV</span>
+    </button>
+  </div>
+
+  @if (isLoading) {
+    <ngx-skeleton-loader
+      animation="pulse"
+      [theme]="{ height: '2rem', width: '100%' }"
+    />
+    <ngx-skeleton-loader
+      animation="pulse"
+      [theme]="{ height: '20rem', width: '100%' }"
+    />
+  } @else {
+    @if (summary) {
+      <div class="row mb-4">
+        <div class="col-md-4">
+          <div class="summary-card">
+            <div class="label" i18n>Total Gain/Loss</div>
+            <gf-value
+              [currency]="baseCurrency"
+              [locale]="user?.settings?.locale"
+              [value]="summary.totalGainLoss"
+            />
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="summary-card">
+            <div class="label" i18n>Short-Term Gain/Loss</div>
+            <gf-value
+              [currency]="baseCurrency"
+              [locale]="user?.settings?.locale"
+              [value]="summary.shortTermGainLoss"
+            />
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="summary-card">
+            <div class="label" i18n>Long-Term Gain/Loss</div>
+            <gf-value
+              [currency]="baseCurrency"
+              [locale]="user?.settings?.locale"
+              [value]="summary.longTermGainLoss"
+            />
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (items?.length) {
+      <table class="w-100" mat-table [dataSource]="items">
+        <ng-container matColumnDef="disposalDate">
+          <th *matHeaderCellDef i18n mat-header-cell>Disposal Date</th>
+          <td *matCellDef="let item" mat-cell>
+            {{
+              item.disposalDate ? (item.disposalDate | date: 'yyyy-MM-dd') : ''
+            }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="acquisitionDate">
+          <th *matHeaderCellDef i18n mat-header-cell>Acquisition Date</th>
+          <td *matCellDef="let item" mat-cell>
+            {{
+              item.acquisitionDate
+                ? (item.acquisitionDate | date: 'yyyy-MM-dd')
+                : '—'
+            }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="symbol">
+          <th *matHeaderCellDef i18n mat-header-cell>Symbol</th>
+          <td *matCellDef="let item" mat-cell>{{ item.symbol }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="type">
+          <th *matHeaderCellDef i18n mat-header-cell>Type</th>
+          <td *matCellDef="let item" mat-cell>{{ item.type }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="quantity">
+          <th *matHeaderCellDef class="text-right" i18n mat-header-cell>
+            Quantity
+          </th>
+          <td *matCellDef="let item" class="text-right" mat-cell>
+            <gf-value
+              [locale]="user?.settings?.locale"
+              [value]="item.quantity"
+            />
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="costBasis">
+          <th *matHeaderCellDef class="text-right" i18n mat-header-cell>
+            Cost Basis
+          </th>
+          <td *matCellDef="let item" class="text-right" mat-cell>
+            <gf-value
+              [currency]="item.currency"
+              [locale]="user?.settings?.locale"
+              [value]="item.costBasis"
+            />
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="proceeds">
+          <th *matHeaderCellDef class="text-right" i18n mat-header-cell>
+            Proceeds
+          </th>
+          <td *matCellDef="let item" class="text-right" mat-cell>
+            <gf-value
+              [currency]="item.currency"
+              [locale]="user?.settings?.locale"
+              [value]="item.proceeds"
+            />
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="gainLoss">
+          <th *matHeaderCellDef class="text-right" i18n mat-header-cell>
+            Gain/Loss
+          </th>
+          <td *matCellDef="let item" class="text-right" mat-cell>
+            <gf-value
+              [colorizeSign]="true"
+              [currency]="item.currency"
+              [locale]="user?.settings?.locale"
+              [value]="item.gainLoss"
+            />
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="holdingPeriod">
+          <th *matHeaderCellDef class="text-right" i18n mat-header-cell>
+            Holding Period
+          </th>
+          <td *matCellDef="let item" class="text-right" mat-cell>
+            @if (item.type !== 'DIVIDEND') {
+              {{ item.holdingPeriodInDays }}d
+              @if (item.isLongTerm) {
+                <span class="badge-long-term ml-1">LT</span>
+              }
+            } @else {
+              —
+            }
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="account">
+          <th *matHeaderCellDef i18n mat-header-cell>Account</th>
+          <td *matCellDef="let item" mat-cell>{{ item.account }}</td>
+        </ng-container>
+
+        <tr *matHeaderRowDef="displayedColumns" mat-header-row></tr>
+        <tr *matRowDef="let row; columns: displayedColumns" mat-row></tr>
+      </table>
+    } @else {
+      <div class="text-center py-5 text-muted">
+        <p i18n>No tax-relevant transactions found for {{ selectedYear }}.</p>
+      </div>
+    }
+  }
+</div>

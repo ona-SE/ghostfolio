@@ -27,6 +27,12 @@ export const secondaryColorRgb = {
   b: 207
 };
 
+export const benchmarkColorRgb = {
+  r: 239,
+  g: 158,
+  b: 49
+};
+
 export const warnColorHex = '#dc3545';
 export const warnColorRgb = {
   r: 220,
@@ -42,8 +48,10 @@ export const ASSET_CLASS_MAPPING = new Map<AssetClass, AssetSubClass[]>([
     [
       AssetSubClass.ETF,
       AssetSubClass.MUTUALFUND,
+      AssetSubClass.OPTION,
       AssetSubClass.PRIVATE_EQUITY,
-      AssetSubClass.STOCK
+      AssetSubClass.STOCK,
+      AssetSubClass.WARRANT
     ]
   ],
   [AssetClass.FIXED_INCOME, [AssetSubClass.BOND, AssetSubClass.LOAN]],

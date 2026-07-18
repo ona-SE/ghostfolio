@@ -7,6 +7,7 @@ import { downloadAsFile } from '@ghostfolio/common/helper';
 import {
   Activity,
   AssetProfileIdentifier,
+  Filter,
   User
 } from '@ghostfolio/common/interfaces';
 import { hasPermission, permissions } from '@ghostfolio/common/permissions';
@@ -29,12 +30,17 @@ import { Sort, SortDirection } from '@angular/material/sort';
 import { MatTableDataSource } from '@angular/material/table';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { IonIcon } from '@ionic/angular/standalone';
+import { Tag } from '@prisma/client';
 import { format, parseISO } from 'date-fns';
 import { addIcons } from 'ionicons';
 import { addOutline } from 'ionicons/icons';
 import { DeviceDetectorService } from 'ngx-device-detector';
 import { Subscription } from 'rxjs';
 
+import {
+  paginateActivitiesForClientSideSearch,
+  resolveActivitiesFetchStrategy
+} from './activities-search.helper';
 import { GfCreateOrUpdateActivityDialogComponent } from './create-or-update-activity-dialog/create-or-update-activity-dialog.component';
 import { CreateOrUpdateActivityDialogParams } from './create-or-update-activity-dialog/interfaces/interfaces';
 import { GfImportActivitiesDialogComponent } from './import-activities-dialog/import-activities-dialog.component';
@@ -54,19 +60,24 @@ import { ImportActivitiesDialogParams } from './import-activities-dialog/interfa
   templateUrl: './activities-page.html'
 })
 export class GfActivitiesPageComponent implements OnInit {
+  public static readonly SERVER_SIDE_SEARCH_THRESHOLD = 1000;
+
   public activityTypesFilter: string[] = [];
   public dataSource: MatTableDataSource<Activity> | undefined;
   public deviceType: string;
   public hasImpersonationId: boolean;
   public hasPermissionToCreateActivity: boolean;
   public hasPermissionToDeleteActivity: boolean;
+  public hasPermissionToUpdateActivity: boolean;
   public pageIndex = 0;
   public pageSize = DEFAULT_PAGE_SIZE;
   public routeQueryParams: Subscription;
+  public searchQuery = '';
   public sortColumn = 'date';
   public sortDirection: SortDirection = 'desc';
+  public tags: Tag[] = [];
   public totalItems: number | undefined;
-  public user: User;
+  public user: User | undefined;
 
   public constructor(
     private changeDetectorRef: ChangeDetectorRef,
@@ -121,6 +132,14 @@ export class GfActivitiesPageComponent implements OnInit {
         this.hasImpersonationId = !!impersonationId;
       });
 
+    this.dataService
+      .fetchTags()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((tags) => {
+        this.tags = tags;
+        this.changeDetectorRef.markForCheck();
+      });
+
     this.userService.stateChanged
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((state) => {
@@ -142,22 +161,52 @@ export class GfActivitiesPageComponent implements OnInit {
     const dateRange = this.user?.settings?.dateRange;
     const range = this.isCalendarYear(dateRange) ? dateRange : undefined;
 
+    const filters: Filter[] = this.userService.getFilters();
+
+    const fetchStrategy = resolveActivitiesFetchStrategy({
+      activitiesCount: this.user?.activitiesCount ?? 0,
+      pageIndex: this.pageIndex,
+      pageSize: this.pageSize,
+      searchQuery: this.searchQuery,
+      serverSideSearchThreshold:
+        GfActivitiesPageComponent.SERVER_SIDE_SEARCH_THRESHOLD
+    });
+
+    if (fetchStrategy.useServerSideSearch) {
+      filters.push({
+        id: this.searchQuery,
+        type: 'SEARCH_QUERY'
+      });
+    }
+
     this.dataService
       .fetchActivities({
+        filters,
         range,
         activityTypes: this.activityTypesFilter.length
           ? this.activityTypesFilter
           : undefined,
-        filters: this.userService.getFilters(),
-        skip: this.pageIndex * this.pageSize,
+        skip: fetchStrategy.skip,
         sortColumn: this.sortColumn,
         sortDirection: this.sortDirection,
-        take: this.pageSize
+        take: fetchStrategy.take
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(({ activities, count }) => {
-        this.dataSource = new MatTableDataSource(activities);
-        this.totalItems = count;
+        if (fetchStrategy.applyClientSideSearch) {
+          const { items, totalItems } = paginateActivitiesForClientSideSearch({
+            activities,
+            pageIndex: this.pageIndex,
+            pageSize: this.pageSize,
+            searchQuery: this.searchQuery
+          });
+
+          this.dataSource = new MatTableDataSource(items);
+          this.totalItems = totalItems;
+        } else {
+          this.dataSource = new MatTableDataSource(activities);
+          this.totalItems = count;
+        }
 
         if (
           this.hasPermissionToCreateActivity &&
@@ -188,6 +237,38 @@ export class GfActivitiesPageComponent implements OnInit {
 
   public onCloneActivity(aActivity: Activity) {
     this.openCreateActivityDialog(aActivity);
+  }
+
+  public onBulkTagAdd({
+    activityIds,
+    tagIds
+  }: {
+    activityIds: string[];
+    tagIds: string[];
+  }) {
+    this.dataService
+      .bulkUpdateActivitiesTags({ activityIds, mode: 'add', tagIds })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.fetchActivities();
+        this.changeDetectorRef.markForCheck();
+      });
+  }
+
+  public onBulkTagRemove({
+    activityIds,
+    tagIds
+  }: {
+    activityIds: string[];
+    tagIds: string[];
+  }) {
+    this.dataService
+      .bulkUpdateActivitiesTags({ activityIds, mode: 'remove', tagIds })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.fetchActivities();
+        this.changeDetectorRef.markForCheck();
+      });
   }
 
   public onDeleteActivities() {
@@ -241,7 +322,7 @@ export class GfActivitiesPageComponent implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((data) => {
         for (const activity of data.activities) {
-          delete (activity as Partial<typeof activity>).id;
+          delete (activity as unknown as Partial<Activity>).id;
         }
 
         downloadAsFile({
@@ -251,6 +332,103 @@ export class GfActivitiesPageComponent implements OnInit {
             'yyyyMMddHHmm'
           )}.json`,
           format: 'json'
+        });
+      });
+  }
+
+  public onExportCsv() {
+    const fetchExportParams = {
+      activityTypes: this.activityTypesFilter.length
+        ? this.activityTypesFilter
+        : undefined,
+      filters: this.userService.getFilters()
+    };
+
+    this.dataService
+      .fetchExport(fetchExportParams)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((data) => {
+        const headers = [
+          'Date',
+          'Symbol',
+          'Type',
+          'Quantity',
+          'Unit Price',
+          'Fee',
+          'Currency',
+          'Account'
+        ];
+
+        const accountMap = new Map(
+          data.accounts.map((account) => [account.id, account.name])
+        );
+
+        const rows = data.activities.map((activity) => [
+          activity.date,
+          activity.symbol,
+          activity.type,
+          String(activity.quantity),
+          String(activity.unitPrice),
+          String(activity.fee),
+          activity.currency ?? '',
+          activity.accountId ? (accountMap.get(activity.accountId) ?? '') : ''
+        ]);
+
+        downloadAsFile({
+          content: { headers, rows },
+          fileName: `ghostfolio-export-${format(
+            parseISO(data.meta.date),
+            'yyyyMMddHHmm'
+          )}.csv`,
+          format: 'csv'
+        });
+      });
+  }
+
+  public onExportTaxCsv() {
+    this.dataService
+      .fetchTaxCsvExport({
+        filters: this.userService.getFilters()
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((data) => {
+        const headers = [
+          'Disposal Date',
+          'Acquisition Date',
+          'Symbol',
+          'Type',
+          'Quantity',
+          'Cost Basis',
+          'Proceeds',
+          'Gain/Loss',
+          'Currency',
+          'Account'
+        ];
+
+        const rows = data.items.map((item) => [
+          item.disposalDate
+            ? format(parseISO(item.disposalDate), 'yyyy-MM-dd')
+            : '',
+          item.acquisitionDate
+            ? format(parseISO(item.acquisitionDate), 'yyyy-MM-dd')
+            : '',
+          item.symbol,
+          item.type,
+          String(item.quantity),
+          String(item.costBasis),
+          String(item.proceeds),
+          String(item.gainLoss),
+          item.currency,
+          item.account
+        ]);
+
+        downloadAsFile({
+          content: { headers, rows },
+          fileName: `ghostfolio-tax-report-${format(
+            parseISO(data.meta.date),
+            'yyyyMMddHHmm'
+          )}.csv`,
+          format: 'csv'
         });
       });
   }
@@ -274,6 +452,10 @@ export class GfActivitiesPageComponent implements OnInit {
   }
 
   public onImport() {
+    if (!this.user) {
+      return;
+    }
+
     const dialogRef = this.dialog.open<
       GfImportActivitiesDialogComponent,
       ImportActivitiesDialogParams
@@ -302,6 +484,10 @@ export class GfActivitiesPageComponent implements OnInit {
   }
 
   public onImportDividends() {
+    if (!this.user) {
+      return;
+    }
+
     const dialogRef = this.dialog.open<
       GfImportActivitiesDialogComponent,
       ImportActivitiesDialogParams
@@ -330,6 +516,13 @@ export class GfActivitiesPageComponent implements OnInit {
       });
   }
 
+  public onSearchChanged(query: string) {
+    this.searchQuery = query;
+    this.pageIndex = 0;
+
+    this.fetchActivities();
+  }
+
   public onSortChanged({ active, direction }: Sort) {
     this.pageIndex = 0;
     this.sortColumn = active;
@@ -352,13 +545,17 @@ export class GfActivitiesPageComponent implements OnInit {
   }
 
   public openUpdateActivityDialog(aActivity: Activity) {
+    if (!this.user) {
+      return;
+    }
+
     const dialogRef = this.dialog.open<
       GfCreateOrUpdateActivityDialogComponent,
       CreateOrUpdateActivityDialogParams
     >(GfCreateOrUpdateActivityDialogComponent, {
       data: {
         activity: aActivity,
-        accounts: this.user?.accounts,
+        accounts: this.user.accounts,
         user: this.user
       },
       height: this.deviceType === 'mobile' ? '98vh' : '80vh',
@@ -400,24 +597,24 @@ export class GfActivitiesPageComponent implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((user) => {
         this.updateUser(user);
+        const currentUser = user;
 
         const dialogRef = this.dialog.open<
           GfCreateOrUpdateActivityDialogComponent,
           CreateOrUpdateActivityDialogParams
         >(GfCreateOrUpdateActivityDialogComponent, {
           data: {
-            accounts: this.user?.accounts ?? [],
+            accounts: currentUser.accounts,
             activity: {
               ...aActivity,
-              accountId: aActivity?.accountId ?? null,
+              accountId: aActivity?.accountId,
               date: new Date(),
-              id: '',
+              id: null,
               fee: 0,
               type: aActivity?.type ?? 'BUY',
-              unitPrice: 0,
-              SymbolProfile: aActivity?.SymbolProfile ?? null
+              unitPrice: null
             } as unknown as CreateOrUpdateActivityDialogParams['activity'],
-            user: this.user
+            user: currentUser
           },
           height: this.deviceType === 'mobile' ? '98vh' : '80vh',
           width: this.deviceType === 'mobile' ? '100vw' : '50rem'
@@ -456,5 +653,8 @@ export class GfActivitiesPageComponent implements OnInit {
     this.hasPermissionToDeleteActivity =
       !this.hasImpersonationId &&
       hasPermission(this.user.permissions, permissions.deleteActivity);
+    this.hasPermissionToUpdateActivity =
+      !this.hasImpersonationId &&
+      hasPermission(this.user.permissions, permissions.updateActivity);
   }
 }

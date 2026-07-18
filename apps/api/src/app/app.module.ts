@@ -1,4 +1,9 @@
 import { EventsModule } from '@ghostfolio/api/events/events.module';
+import {
+  RATE_LIMIT_BASIC,
+  RATE_LIMIT_TTL,
+  UserTierThrottlerGuard
+} from '@ghostfolio/api/guards/user-tier-throttler.guard';
 import { BullBoardAuthMiddleware } from '@ghostfolio/api/middlewares/bull-board-auth.middleware';
 import { HtmlTemplateMiddleware } from '@ghostfolio/api/middlewares/html-template.middleware';
 import { ConfigurationModule } from '@ghostfolio/api/services/configuration/configuration.module';
@@ -21,6 +26,7 @@ import { BullBoardModule } from '@bull-board/nestjs';
 import { BullModule } from '@nestjs/bull';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ServeStaticModule } from '@nestjs/serve-static';
@@ -43,7 +49,9 @@ import { AssetsModule } from './endpoints/assets/assets.module';
 import { BenchmarksModule } from './endpoints/benchmarks/benchmarks.module';
 import { GhostfolioModule } from './endpoints/data-providers/ghostfolio/ghostfolio.module';
 import { MarketDataModule } from './endpoints/market-data/market-data.module';
+import { MetricsModule } from './endpoints/metrics/metrics.module';
 import { PlatformsModule } from './endpoints/platforms/platforms.module';
+import { PriceAlertsModule } from './endpoints/price-alerts/price-alerts.module';
 import { PublicModule } from './endpoints/public/public.module';
 import { SitemapModule } from './endpoints/sitemap/sitemap.module';
 import { TagsModule } from './endpoints/tags/tags.module';
@@ -56,9 +64,11 @@ import { InfoModule } from './info/info.module';
 import { LogoModule } from './logo/logo.module';
 import { PlatformModule } from './platform/platform.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
+import { RecurringInvestmentPlanModule } from './recurring-investment-plan/recurring-investment-plan.module';
 import { RedisCacheModule } from './redis-cache/redis-cache.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { SymbolModule } from './symbol/symbol.module';
+import { TaxReportModule } from './tax-report/tax-report.module';
 import { UserModule } from './user/user.module';
 
 @Module({
@@ -123,10 +133,13 @@ import { UserModule } from './user/user.module';
     InfoModule,
     LogoModule,
     MarketDataModule,
+    ...(process.env.ENABLE_FEATURE_METRICS === 'true' ? [MetricsModule] : []),
     PlatformModule,
     PlatformsModule,
+    PriceAlertsModule,
     PortfolioModule,
     PortfolioSnapshotQueueModule,
+    RecurringInvestmentPlanModule,
     PrismaModule,
     PropertyModule,
     PublicModule,
@@ -169,19 +182,26 @@ import { UserModule } from './user/user.module';
     SubscriptionModule,
     SymbolModule,
     TagsModule,
+    TaxReportModule,
     ThrottlerModule.forRoot({
       throttlers: [
         {
-          name: 'public-api',
-          ttl: 900000, // 15 minutes in milliseconds
-          limit: 100
+          name: 'user-tier',
+          ttl: RATE_LIMIT_TTL,
+          limit: RATE_LIMIT_BASIC
         }
       ]
     }),
     UserModule,
     WatchlistModule
   ],
-  providers: [I18nService]
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: UserTierThrottlerGuard
+    },
+    I18nService
+  ]
 })
 export class AppModule implements NestModule {
   public configure(consumer: MiddlewareConsumer) {

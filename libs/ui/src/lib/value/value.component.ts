@@ -154,11 +154,15 @@ export class GfValueComponent implements AfterViewInit, OnChanges {
         this.isString = true;
 
         if (this.isDate) {
+          // Dates are stored anchored to UTC midnight. Render them in the UTC
+          // timezone so the displayed calendar date matches what was stored;
+          // otherwise users behind UTC see the date shifted by a day.
           this.formattedValue = new Date(this.value).toLocaleDateString(
             this.locale,
             {
               day: '2-digit',
               month: '2-digit',
+              timeZone: 'UTC',
               year: this.deviceType === 'mobile' ? '2-digit' : 'numeric'
             }
           );
