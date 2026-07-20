@@ -60,9 +60,16 @@ import annotationPlugin, {
 import { isAfter } from 'date-fns';
 import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 
+import { alignBenchmarkToPortfolioDates } from './benchmark-chart.helper';
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, FormsModule, MatSelectModule, NgxSkeletonLoaderModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    MatSelectModule,
+    NgxSkeletonLoaderModule
+  ],
   selector: 'gf-investment-chart',
   styleUrls: ['./investment-chart.component.scss'],
   templateUrl: './investment-chart.component.html'
@@ -108,8 +115,7 @@ export class GfInvestmentChartComponent implements OnChanges, OnDestroy {
   }
 
   public ngOnChanges() {
-    this.hasBenchmarkSelector =
-      this.benchmarks?.length > 0 && !this.groupBy;
+    this.hasBenchmarkSelector = this.benchmarks?.length > 0 && !this.groupBy;
 
     if (this.benchmarkDataItems && this.historicalDataItems) {
       this.initialize();
@@ -180,29 +186,14 @@ export class GfInvestmentChartComponent implements OnChanges, OnDestroy {
 
     // Add benchmark performance overlay when data is available
     if (this.benchmarkPerformanceDataItems?.length > 0 && !this.groupBy) {
-      const benchmarkLabel =
-        this.benchmark?.name ?? $localize`Benchmark`;
-
-      // Build a lookup of benchmark values by date
-      const benchmarkByDate: Record<string, number> = {};
-
-      for (const { date, value } of this.benchmarkPerformanceDataItems) {
-        benchmarkByDate[date] = value;
-      }
+      const benchmarkLabel = this.benchmark?.name ?? $localize`Benchmark`;
 
       // Align benchmark data to the same date axis as the portfolio values
-      const benchmarkAligned = this.values.map(({ date }) => {
-        const benchmarkValue = benchmarkByDate[date];
-
-        return {
-          x: parseDate(date).getTime(),
-          y:
-            benchmarkValue != null
-              ? this.isInPercentage
-                ? benchmarkValue * 100
-                : benchmarkValue
-              : null
-        };
+      const benchmarkAligned = alignBenchmarkToPortfolioDates({
+        parseDate,
+        benchmarkPerformanceDataItems: this.benchmarkPerformanceDataItems,
+        isInPercentage: this.isInPercentage,
+        portfolioDataItems: this.values
       });
 
       datasets.push({
