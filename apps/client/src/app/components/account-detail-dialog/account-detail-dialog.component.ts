@@ -2,7 +2,7 @@ import { GfInvestmentChartComponent } from '@ghostfolio/client/components/invest
 import { UserService } from '@ghostfolio/client/services/user/user.service';
 import { NUMERICAL_PRECISION_THRESHOLD_6_FIGURES } from '@ghostfolio/common/config';
 import { CreateAccountBalanceDto } from '@ghostfolio/common/dtos';
-import { DATE_FORMAT, downloadAsFile } from '@ghostfolio/common/helper';
+import { downloadAsFile } from '@ghostfolio/common/helper';
 import {
   AccountBalancesResponse,
   Activity,
@@ -51,6 +51,7 @@ import { isNumber } from 'lodash';
 import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 import { forkJoin } from 'rxjs';
 
+import { getHistoricalDataItemsFromAccountBalances } from './account-balances-chart.helper';
 import { AccountDetailDialogParams } from './interfaces/interfaces';
 
 @Component({
@@ -341,13 +342,8 @@ export class GfAccountDetailDialogComponent implements OnInit {
             })
           );
         } else {
-          this.historicalDataItems = this.accountBalances.map(
-            ({ date, valueInBaseCurrency }) => {
-              return {
-                date: format(date, DATE_FORMAT),
-                value: valueInBaseCurrency
-              };
-            }
+          this.historicalDataItems = getHistoricalDataItemsFromAccountBalances(
+            this.accountBalances
           );
         }
 
