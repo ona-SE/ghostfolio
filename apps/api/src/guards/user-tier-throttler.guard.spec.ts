@@ -3,13 +3,22 @@ import { SubscriptionType } from '@ghostfolio/common/enums';
 import {
   RATE_LIMIT_BASIC,
   RATE_LIMIT_PREMIUM,
+  RATE_LIMIT_PUBLIC_ENDPOINT,
+  RATE_LIMIT_PUBLIC_ENDPOINT_TTL,
+  RATE_LIMIT_TTL,
   UserTierThrottlerGuard
 } from './user-tier-throttler.guard';
 
 // Access protected methods via a test subclass
 class TestableUserTierThrottlerGuard extends UserTierThrottlerGuard {
-  public constructor() {
-    super([] as any, {} as any, {} as any);
+  public constructor(reflectorValue = false) {
+    super(
+      [] as any,
+      {} as any,
+      {
+        getAllAndOverride: jest.fn().mockReturnValue(reflectorValue)
+      } as any
+    );
   }
 
   public async testGetTracker(req: Record<string, any>): Promise<string> {
@@ -31,6 +40,8 @@ class TestableUserTierThrottlerGuard extends UserTierThrottlerGuard {
       });
 
     const mockContext = {
+      getClass: () => ({}),
+      getHandler: () => ({}),
       switchToHttp: () => ({
         getRequest: () => ({ user })
       })
@@ -116,6 +127,43 @@ describe('UserTierThrottlerGuard', () => {
       const result = await guard.testHandleRequest({ id: 'user-456' });
 
       expect(result.limit).toBe(RATE_LIMIT_BASIC);
+    });
+
+    it('should apply the default TTL for non-public endpoints', async () => {
+      const result = await guard.testHandleRequest({
+        subscription: { type: SubscriptionType.Basic }
+      });
+
+      expect(result.ttl).toBe(RATE_LIMIT_TTL);
+    });
+  });
+
+  describe('handleRequest for public endpoints', () => {
+    let publicGuard: TestableUserTierThrottlerGuard;
+
+    beforeEach(() => {
+      publicGuard = new TestableUserTierThrottlerGuard(true);
+    });
+
+    it('should apply the stricter public-endpoint limit for unauthenticated requests', async () => {
+      const result = await publicGuard.testHandleRequest(undefined);
+
+      expect(result.limit).toBe(RATE_LIMIT_PUBLIC_ENDPOINT);
+    });
+
+    it('should apply the shorter public-endpoint TTL', async () => {
+      const result = await publicGuard.testHandleRequest(undefined);
+
+      expect(result.ttl).toBe(RATE_LIMIT_PUBLIC_ENDPOINT_TTL);
+    });
+
+    it('should apply the public-endpoint limit regardless of user tier', async () => {
+      const result = await publicGuard.testHandleRequest({
+        subscription: { type: SubscriptionType.Premium }
+      });
+
+      expect(result.limit).toBe(RATE_LIMIT_PUBLIC_ENDPOINT);
+      expect(result.ttl).toBe(RATE_LIMIT_PUBLIC_ENDPOINT_TTL);
     });
   });
 });

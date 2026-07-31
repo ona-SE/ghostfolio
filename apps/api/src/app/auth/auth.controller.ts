@@ -1,5 +1,6 @@
 import { WebAuthService } from '@ghostfolio/api/app/auth/web-auth.service';
 import { HasPermissionGuard } from '@ghostfolio/api/guards/has-permission.guard';
+import { RateLimitPublicEndpoint } from '@ghostfolio/api/guards/user-tier-throttler.guard';
 import { ConfigurationService } from '@ghostfolio/api/services/configuration/configuration.service';
 import { DEFAULT_LANGUAGE_CODE } from '@ghostfolio/common/config';
 import {
@@ -55,6 +56,7 @@ export class AuthController {
   }
 
   @Post('anonymous')
+  @RateLimitPublicEndpoint()
   public async accessTokenLogin(
     @Body() body: { accessToken: string }
   ): Promise<OAuthResponse> {
